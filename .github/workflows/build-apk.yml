@@ -21,14 +21,17 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - name: Accept Android licenses
-        run: yes | sdkmanager --licenses || true
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.3.1'
       - name: Build debug APK
+        shell: bash
         working-directory: ${{ env.PROJECT_DIR }}
-        run: gradle assembleDebug --no-daemon --stacktrace
+        run: gradle assembleDebug --no-daemon --console=plain 2>&1 | tee build.log
+      - name: Show errors
+        if: failure()
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: grep -n -E "^e: |What went wrong|FAILED|Could not|error:" -A 4 build.log | head -100
       - uses: actions/upload-artifact@v4
         with:
           name: OneHandControl-debug-apk
