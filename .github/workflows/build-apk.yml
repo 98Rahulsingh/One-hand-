@@ -31,7 +31,8 @@ jobs:
       - name: Show errors
         if: failure()
         working-directory: ${{ env.PROJECT_DIR }}
-        run: grep -n -E "^e: |What went wrong|FAILED|Could not|error:" -A 4 build.log | head -100
+        run: |
+          grep -n -E "^e: |What went wrong|FAILED|Could not|error:" -A 4 build.log | head -100
       - uses: actions/upload-artifact@v4
         with:
           name: OneHandControl-debug-apk
