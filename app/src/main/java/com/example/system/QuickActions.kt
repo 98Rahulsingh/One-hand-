@@ -390,7 +390,7 @@ class QuickActions(private val ctx: Context, private val perms: PermissionsManag
         val w = (dm.widthPixels * 0.88).toInt()
         val h = (dm.heightPixels * 0.55).toInt()
         val l = (dm.widthPixels - w) / 2
-        val t = (dm.heightPixels - h) / 3
+        val t = (dm.heightPixels - h - (16 * dm.density).toInt()).coerceAtLeast(0)
         return Rect(l, t, l + w, t + h)
     }
 

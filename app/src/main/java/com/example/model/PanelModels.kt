@@ -77,8 +77,8 @@ data class PanelSettings(
     val roundedCorners: Int = 5,      // 0 = Square, 10 = Maximum curve
     val horizontalOffset: Int = 0,    // 0 = Edge attached, 10 = Floating
     val verticalPosition: Int = 5,    // 0 = Top, 10 = Bottom
-    val columns: Int = 2,             // 1 to 10
-    val rows: Int = 6,                // 1 to 10
+    val columns: Int = 4,             // 1 to 10
+    val rows: Int = 10,               // 1 to 10
     val isRightEdge: Boolean = true,  // Left or Right edge trigger
     val handleOpacity: Float = 0.85f,
     val handleHeightDp: Float = 76f,
@@ -112,7 +112,32 @@ data class PanelSettings(
     // Background dim opacity (0% = completely transparent, 100% = pitch black)
     val backdropOpacityPercent: Int = 45,
     // Edge handle master ON / OFF switch
-    val isEdgeHandleEnabled: Boolean = true
+    val isEdgeHandleEnabled: Boolean = true,
+    // Compact UI & Extended Settings
+    val rightTriggerVerticalPos: Int = 5,
+    val rightTriggerWidthDp: Float = 14f,
+    val rightTriggerLengthDp: Float = 76f,
+    val leftTriggerVerticalPos: Int = 5,
+    val leftTriggerWidthDp: Float = 14f,
+    val leftTriggerLengthDp: Float = 76f,
+    val panelHeightPercent: Int = 65,
+    val panelWidthDp: Float = 240f,
+    val verticalOffsetDp: Int = 0,
+    val floatingLengthDp: Float = 380f,
+    val floatingWidthDp: Float = 270f,
+    val quickToolLengthDp: Float = 220f,
+    val quickToolWidthDp: Float = 250f,
+    val mediaControlLengthDp: Float = 160f,
+    val mediaControlWidthDp: Float = 250f,
+    val rememberFloatingPosition: Boolean = true,
+    val openFloatingAppsBottomDown: Boolean = true,
+    val oneHandSize: Float = 4.0f,
+    val syncWithEdgePanel: Boolean = true,
+    val showApkNameInGroupList: Boolean = true,
+    val showActionNameInList: Boolean = true,
+    val showActiveMediaInQuickPanel: Boolean = true,
+    val showActiveMediaInMediaControl: Boolean = true,
+    val gestureBindings: Map<String, String> = emptyMap()
 )
 
 enum class ActiveWindow {

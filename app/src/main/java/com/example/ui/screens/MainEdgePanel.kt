@@ -1181,65 +1181,37 @@ fun ActiveMediaStreams(
     streams: List<MediaStreamItem>,
     mediaAccessOn: Boolean,
     onSelect: (String) -> Unit,
-    onEnableAccess: () -> Unit,
+    onOpenSettings: () -> Unit = {},
     onScan: () -> Unit = {}
 ) {
-    var showAll by remember { mutableStateOf(false) }
-    val shown = if (showAll) streams else streams.filter { it.isPlaying || it.isActive }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(Color(0xFF0C242A))
-            .padding(8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    var hidden by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    val active = streams.firstOrNull { it.isActive } ?: streams.firstOrNull()
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(22.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(Color(0xFF0A2429))
+                .clickable { hidden = !hidden }
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
             Text(
-                "ACTIVE MEDIA",
-                color = Color(0xFF00E5FF),
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 0.5.sp,
+                text = if (hidden) "Active Media (Hidden)" else if (active != null) "♪ ${active.appName}: ${active.trackTitle}" else if (!mediaAccessOn) "♪ Allow Media Control" else "♪ No active media",
+                color = Color(0xFF80DEEA),
+                fontSize = 10.sp,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
             )
-            TextButton(onClick = onScan) { Text("Scan", fontSize = 10.sp, color = Color(0xFF00E5FF)) }
-            TextButton(onClick = { showAll = !showAll }) {
-                Text(if (showAll) "Playing only" else "Show all (${streams.size})", fontSize = 10.sp, color = Color(0xFF00E5FF))
-            }
-        }
-        if (!mediaAccessOn) {
             Text(
-                text = "Media access is OFF. Tap to turn it on",
-                color = Color(0xFFFFD54F),
-                fontSize = 11.sp,
-                modifier = Modifier.clickable { onEnableAccess() }.padding(vertical = 4.dp)
+                text = if (hidden) "Show" else "Hide",
+                color = Color(0xFF00E5FF),
+                fontSize = 9.sp,
+                fontWeight = FontWeight.SemiBold
             )
-        } else if (shown.isEmpty()) {
-            Text("Nothing is playing. Tap Scan to look again", color = Color(0xFF80DEEA).copy(alpha = 0.7f), fontSize = 11.sp)
-        } else {
-            shown.forEach { s ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (s.isActive) Color(0xFF173D45) else Color.Transparent)
-                        .clickable { onSelect(s.id) }
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(s.appName, color = if (s.isActive) Color(0xFF00E5FF) else Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                        Text(s.trackTitle, color = Color(0xFF80DEEA).copy(alpha = 0.8f), fontSize = 10.sp, maxLines = 1)
-                    }
-                    Text(
-                        text = if (s.isActive) "Controlling" else "Control",
-                        color = Color(0xFF00E5FF),
-                        fontSize = 10.sp,
-                        fontWeight = if (s.isActive) FontWeight.Bold else FontWeight.Normal
-                    )
-                }
-            }
         }
     }
 }

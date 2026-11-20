@@ -132,6 +132,19 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
     val tileTargets: StateFlow<Map<String, TapTarget>> = _tileTargets.asStateFlow()
     private val _suspended = MutableStateFlow(false)
     val overlaySuspended: StateFlow<Boolean> = _suspended.asStateFlow()
+    private val _awaitingPermissionReturn = MutableStateFlow(false)
+    fun isAwaitingPermissionReturn(): Boolean = _awaitingPermissionReturn.value
+    fun clearAwaitingPermissionReturn() { _awaitingPermissionReturn.value = false }
+
+    fun updateSettings(transform: (PanelSettings) -> PanelSettings) {
+        _panelSettings.update(transform)
+    }
+
+    fun bindGesture(gestureName: String, itemLabel: String) {
+        _panelSettings.update { s ->
+            s.copy(gestureBindings = s.gestureBindings + (gestureName to itemLabel))
+        }
+    }
     private var lastRevive = 0L
     private val _reorder = MutableStateFlow<ReorderTarget?>(null)
     val reorder: StateFlow<ReorderTarget?> = _reorder.asStateFlow()
@@ -244,6 +257,7 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
     fun guideFor(type: String): String = perms.guideText(type)
 
     fun openSystemScreen(type: String) {
+        _awaitingPermissionReturn.value = true
         perms.systemScreen(type)?.let { appContext.startActivity(it) }
         _guideType.value = null
         _permissionDialogInfo.value = null

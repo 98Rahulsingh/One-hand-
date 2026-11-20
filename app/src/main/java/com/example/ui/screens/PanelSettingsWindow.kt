@@ -4,672 +4,412 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ViewSidebar
-import androidx.compose.material.icons.filled.AccessibilityNew
-import androidx.compose.material.icons.filled.BatteryChargingFull
-import androidx.compose.material.icons.filled.ColorLens
-import androidx.compose.material.icons.filled.HelpOutline
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Layers
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.PictureInPicture
-import androidx.compose.material.icons.filled.QueryStats
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.testTag
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.ActiveWindow
 import com.example.model.PanelSettings
-import com.example.ui.components.FloatingWindowCard
-import com.example.ui.components.TealSliderWithBadge
 import com.example.viewmodel.OneHandViewModel
+
+private val GestureItems = listOf(
+    "Swipe Up",
+    "Swipe Up Hold",
+    "Swipe Down",
+    "Swipe Down Hold",
+    "Swipe Inward",
+    "Swipe Inward Hold",
+    "Single Tap",
+    "Double Tap",
+    "Long Press"
+)
 
 @Composable
 fun PanelSettingsWindow(
     viewModel: OneHandViewModel,
     modifier: Modifier = Modifier
 ) {
-    val panelSettings by viewModel.panelSettings.collectAsState()
-    val permissionDialogInfo by viewModel.permissionDialogInfo.collectAsState()
+    val s by viewModel.panelSettings.collectAsState()
     val guideType by viewModel.guideType.collectAsState()
-    var selectedTab by remember { mutableStateOf("Side Bar") }
 
-    // Dialog for "How to enable?"
-    permissionDialogInfo?.let { (title, description) ->
-        AlertDialog(
-            onDismissRequest = { viewModel.dismissPermissionGuide() },
-            title = {
-                Text(
-                    text = title,
-                    color = Color(0xFF00E5FF),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
-            },
-            text = {
-                SelectionContainer {
-                    Text(
-                        text = description,
-                        color = Color(0xFFE0F7FA),
-                        fontSize = 12.sp,
-                        lineHeight = 17.sp
-                    )
-                }
-            },
-            dismissButton = {
-                guideType?.let { type ->
-                    TextButton(onClick = { viewModel.openSystemScreen(type) }) {
-                        Text("Open settings", color = Color(0xFF80DEEA))
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = { viewModel.dismissPermissionGuide() },
-                    modifier = Modifier.testTag("dismiss_guide_dialog")
-                ) {
-                    Text("Got it", color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold)
-                }
-            },
-            containerColor = Color(0xFF0B252B),
-            shape = RoundedCornerShape(16.dp)
-        )
+    var expanded by remember { mutableStateOf(setOf("Permissions")) }
+    fun toggleSec(name: String) {
+        expanded = if (name in expanded) expanded - name else expanded + name
     }
 
-    FloatingWindowCard(
-        title = "Panel Setting",
-        initialGeometry = panelSettings.settingsGeometry,
-        onGeometryChange = { x, y, w, h ->
-            viewModel.updateSettingsGeometry(x, y, w, h)
-        },
-        onClose = { viewModel.navigateTo(ActiveWindow.MAIN_PANEL) },
+    Column(
         modifier = modifier
+            .fillMaxSize()
+            .background(Color(0xFF0A1418))
+            .padding(6.dp)
     ) {
-        Column(
+        // Slim Title Strip
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFF081C20))
+                .fillMaxWidth()
+                .height(26.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(Color(0xFF12232A))
+                .border(0.5.dp, Color(0xFF1E4E59), RoundedCornerShape(6.dp))
+                .padding(horizontal = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
-            ) {
-                item {
-                    // Settings Sliders Card matching Image 2 (Clean & Compact!)
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0B242A)),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF16444E))
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            // Slider 1: Rounded corners
-                            TealSliderWithBadge(
-                                title = "Rounded corners",
-                                subtitle = "Panel corner curvature (0 = Square, 10 = Maximum curve)",
-                                value = panelSettings.roundedCorners,
-                                range = 0..10,
-                                onValueChange = { viewModel.updateRoundedCorners(it) },
-                                testTag = "slider_rounded_corners"
-                            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color(0xFF80DEEA),
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clickable { viewModel.navigateTo(ActiveWindow.MAIN_PANEL) }
+                )
+                Spacer(Modifier.width(6.dp))
+                Text("Settings", color = Color(0xFFE0F7FA), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            }
+            Text(
+                text = if (s.oneHandSize == 4.0f) "4.0 Full" else "${s.oneHandSize}",
+                color = Color(0xFF00E5FF),
+                fontSize = 10.sp
+            )
+        }
 
-                            // Slider 2: Horizontal offset
-                            TealSliderWithBadge(
-                                title = "Horizontal offset",
-                                subtitle = "Panel inward distance from edge (0 = Edge attached, 10 = Floating)",
-                                value = panelSettings.horizontalOffset,
-                                range = 0..10,
-                                onValueChange = { viewModel.updateHorizontalOffset(it) },
-                                testTag = "slider_horizontal_offset"
-                            )
+        Spacer(Modifier.height(4.dp))
 
-                            // Slider 3: Vertical position
-                            TealSliderWithBadge(
-                                title = "Vertical position",
-                                subtitle = "Panel vertical alignment along screen (0 = Top, 10 = Bottom)",
-                                value = panelSettings.verticalPosition,
-                                range = 0..10,
-                                onValueChange = { viewModel.updateVerticalPosition(it) },
-                                testTag = "slider_vertical_position"
-                            )
-
-                            // Slider 4: Columns
-                            TealSliderWithBadge(
-                                title = "Columns",
-                                subtitle = "App icons per row in side panel",
-                                value = panelSettings.columns,
-                                range = 1..10,
-                                onValueChange = { viewModel.updateColumns(it) },
-                                testTag = "slider_columns"
-                            )
-
-                            // Slider 5: Rows
-                            TealSliderWithBadge(
-                                title = "Rows",
-                                subtitle = "Visible rows per page in side panel",
-                                value = panelSettings.rows,
-                                range = 1..10,
-                                onValueChange = { viewModel.updateRows(it) },
-                                testTag = "slider_rows"
-                            )
-
-                            // Slider 6: Background Dimming Opacity (0% to 100%)
-                            TealSliderWithBadge(
-                                title = "Background dimming opacity",
-                                subtitle = "Darkness level when side panel opens (0 = Clear, 100 = Solid Black)",
-                                value = panelSettings.backdropOpacityPercent,
-                                range = 0..100,
-                                onValueChange = { viewModel.updateBackdropOpacity(it) },
-                                testTag = "slider_backdrop_opacity"
-                            )
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            // Edge Placement Segmented Selector with Master ON/OFF Switch
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Panel Screen Edge Placement",
-                                        color = Color(0xFFE0F7FA),
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = if (panelSettings.isEdgeHandleEnabled) "Edge handle is ACTIVE" else "Edge handle is OFF",
-                                        color = if (panelSettings.isEdgeHandleEnabled) Color(0xFF00E5FF) else Color(0xFFFF8A80),
-                                        fontSize = 10.sp
-                                    )
-                                }
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = if (panelSettings.isEdgeHandleEnabled) "ON" else "OFF",
-                                        color = if (panelSettings.isEdgeHandleEnabled) Color(0xFF00E5FF) else Color(0xFF80DEEA).copy(alpha = 0.6f),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Switch(
-                                        checked = panelSettings.isEdgeHandleEnabled,
-                                        onCheckedChange = { viewModel.setEdgeHandleEnabled(it) },
-                                        colors = SwitchDefaults.colors(
-                                            checkedThumbColor = Color(0xFF00E5FF),
-                                            checkedTrackColor = Color(0xFF005662),
-                                            uncheckedThumbColor = Color(0xFF80DEEA),
-                                            uncheckedTrackColor = Color(0xFF1B4048)
-                                        ),
-                                        modifier = Modifier.testTag("switch_edge_handle_master")
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFF0F323A))
-                                    .padding(4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                // Left Edge Button
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(if (!panelSettings.isRightEdge) Color(0xFF00E5FF) else Color.Transparent)
-                                        .clickable { viewModel.setEdgeSide(false) }
-                                        .padding(vertical = 8.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = "LEFT EDGE",
-                                        color = if (!panelSettings.isRightEdge) Color(0xFF00363A) else Color(0xFF80DEEA),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-
-                                // Right Edge Button
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(if (panelSettings.isRightEdge) Color(0xFF00E5FF) else Color.Transparent)
-                                        .clickable { viewModel.setEdgeSide(true) }
-                                        .padding(vertical = 8.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = "RIGHT EDGE",
-                                        color = if (panelSettings.isRightEdge) Color(0xFF00363A) else Color(0xFF80DEEA),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            // 1. RIGHT
+            item {
+                SlimCollapsibleSection("Right", "Right" in expanded, { toggleSec("Right") }) {
+                    SlimSlider("Trigger V Pos", s.rightTriggerVerticalPos.toFloat(), 0f..10f, "${s.rightTriggerVerticalPos}") {
+                        viewModel.updateSettings { cur -> cur.copy(rightTriggerVerticalPos = it.toInt()) }
                     }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // ==========================================
-                    // PERMISSIONS SECTION (Compact & Clean)
-                    // ==========================================
-                    Text(
-                        text = "PERMISSIONS & SERVICES",
-                        color = Color(0xFF00E5FF),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0B242A)),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF16444E))
-                    ) {
-                        Column(modifier = Modifier.padding(10.dp)) {
-                            // 1: New Dedicated System Controls & Quick Toggles Permission (Requested by User)
-                            PermissionTile(
-                                title = "System Controls & Quick Toggles",
-                                description = "Powers 1-tap hardware toggles (Mobile Net, Wi-Fi, Airplane Mode, Bluetooth), App activity inspector, Switch Previous App, Split Screen, and Floating Windows",
-                                isGranted = panelSettings.systemControlPermissionEnabled,
-                                icon = Icons.Default.Settings,
-                                onToggle = { viewModel.togglePermission("system_control") },
-                                onHowToEnable = {
-                                    viewModel.showPermissionGuide(
-                                        "System Controls & Secure Settings",
-                                        viewModel.setupGuide()
-                                    )
-                                }
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            // 2: Accessibility
-                            PermissionTile(
-                                title = "Accessibility",
-                                description = "Powers widget buttons: lock screen, screenshots, recents, previous app swap, and quick settings",
-                                isGranted = panelSettings.accessibilityEnabled,
-                                icon = Icons.Default.AccessibilityNew,
-                                onToggle = { viewModel.togglePermission("accessibility") },
-                                onHowToEnable = {
-                                    viewModel.showPermissionGuide(
-                                        "Accessibility Service",
-                                        "Enables system actions like locking screen, pulling notifications and taking screenshots.\n\nSteps:\n1. Open Settings > Accessibility\n2. Turn ON One Hand Control."
-                                    )
-                                }
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            // 3: Notifications
-                            PermissionTile(
-                                title = "Notifications",
-                                description = "Delivers search service alerts and stays active",
-                                isGranted = panelSettings.notificationsEnabled,
-                                icon = Icons.Default.Notifications,
-                                onToggle = { viewModel.togglePermission("notifications") },
-                                onHowToEnable = {
-                                    viewModel.showPermissionGuide(
-                                        "Notification Access",
-                                        "Keeps gesture service running.\n\nSteps:\n1. Settings > Special app access > Notification access\n2. Enable One Hand Control."
-                                    )
-                                }
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            // 4: Media controls
-                            PermissionTile(
-                                title = "Media controls",
-                                description = "Shows now-playing music controls in your search overlay",
-                                isGranted = panelSettings.mediaControlsEnabled,
-                                icon = Icons.Default.MusicNote,
-                                onToggle = { viewModel.togglePermission("media_controls") },
-                                onHowToEnable = {
-                                    viewModel.showPermissionGuide(
-                                        "Media Controls",
-                                        "Allows seek bar and 15s forward/rewind for Spotify, YouTube, etc.\n\nSteps:\n1. Grant Notification & Media Listener access."
-                                    )
-                                }
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            // 5: Usage access
-                            PermissionTile(
-                                title = "Usage access",
-                                description = "Surfaces your recently used apps for one-tap search and app activity",
-                                isGranted = panelSettings.usageAccessEnabled,
-                                icon = Icons.Default.QueryStats,
-                                onToggle = { viewModel.togglePermission("usage_access") },
-                                onHowToEnable = {
-                                    viewModel.showPermissionGuide(
-                                        "Usage Access",
-                                        "Surfaces Recent & Most Used apps.\n\nSteps:\n1. Settings > Usage access\n2. Enable One Hand Control."
-                                    )
-                                }
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            // 6: Floating window permission
-                            PermissionTile(
-                                title = "Floating window permission",
-                                description = "Allows edge trigger handle and floating popups to draw over other apps",
-                                isGranted = panelSettings.floatingWindowEnabled,
-                                icon = Icons.Default.PictureInPicture,
-                                onToggle = { viewModel.togglePermission("floating_window") },
-                                onHowToEnable = {
-                                    viewModel.showPermissionGuide(
-                                        "Floating Window Overlay",
-                                        "Allows edge handle on top of all apps.\n\nSteps:\n1. Settings > Special app access > Display over other apps\n2. Enable One Hand Control."
-                                    )
-                                }
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            // 6b: Developer options for floating windows
-                            PermissionTile(
-                                title = "Enable freeform windows",
-                                description = "Developer option. Lets apps open in small floating windows. Restart the phone once after switching on",
-                                isGranted = panelSettings.freeformSupportEnabled,
-                                icon = Icons.Default.PictureInPicture,
-                                onToggle = { viewModel.togglePermission("freeform_support") },
-                                onHowToEnable = {
-                                    viewModel.showPermissionGuide("Enable freeform windows", viewModel.guideFor("freeform_support"))
-                                }
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            PermissionTile(
-                                title = "Force activities to be resizable",
-                                description = "Developer option. Lets every app shrink into a small window",
-                                isGranted = panelSettings.forceResizableEnabled,
-                                icon = Icons.Default.PictureInPicture,
-                                onToggle = { viewModel.togglePermission("force_resizable") },
-                                onHowToEnable = {
-                                    viewModel.showPermissionGuide("Force activities to be resizable", viewModel.guideFor("force_resizable"))
-                                }
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            // 6c: Modify system settings
-                            PermissionTile(
-                                title = "Modify system settings",
-                                description = "Needed for Auto-rotate and brightness quick toggles",
-                                isGranted = panelSettings.writeSettingsEnabled,
-                                icon = Icons.Default.Settings,
-                                onToggle = { viewModel.togglePermission("write_settings") },
-                                onHowToEnable = {
-                                    viewModel.showPermissionGuide("Modify system settings", viewModel.guideFor("write_settings"))
-                                }
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            // 6e: Xiaomi / HyperOS extra permissions
-                            PermissionTile(
-                                title = "Open new windows in background",
-                                description = "Needed so apps can open from the panel while another app is on screen",
-                                isGranted = panelSettings.bgStartEnabled,
-                                icon = Icons.Default.Settings,
-                                onToggle = { viewModel.togglePermission("bg_start") },
-                                onHowToEnable = {
-                                    viewModel.showPermissionGuide("Open new windows in background", viewModel.guideFor("bg_start"))
-                                }
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            PermissionTile(
-                                title = "Show on lock screen",
-                                description = "Lets the panel work on the lock screen",
-                                isGranted = panelSettings.lockScreenEnabled,
-                                icon = Icons.Default.Settings,
-                                onToggle = { viewModel.togglePermission("lock_screen") },
-                                onHowToEnable = {
-                                    viewModel.showPermissionGuide("Show on lock screen", viewModel.guideFor("lock_screen"))
-                                }
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            PermissionTile(
-                                title = "Home screen shortcuts",
-                                description = "Lets the app add shortcuts to the home screen",
-                                isGranted = panelSettings.shortcutsEnabled,
-                                icon = Icons.Default.Settings,
-                                onToggle = { viewModel.togglePermission("shortcuts") },
-                                onHowToEnable = {
-                                    viewModel.showPermissionGuide("Home screen shortcuts", viewModel.guideFor("shortcuts"))
-                                }
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            PermissionTile(
-                                title = "Autostart",
-                                description = "Lets the phone start the panel after a restart or when it was closed",
-                                isGranted = panelSettings.autostartEnabled,
-                                icon = Icons.Default.Settings,
-                                onToggle = { viewModel.togglePermission("autostart") },
-                                onHowToEnable = {
-                                    viewModel.showPermissionGuide("Autostart", viewModel.guideFor("autostart"))
-                                }
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            PermissionTile(
-                                title = "Pause app activity if unused: OFF",
-                                description = "Stops the phone from switching the app off when you do not open it for a while",
-                                isGranted = panelSettings.noPauseEnabled,
-                                icon = Icons.Default.Settings,
-                                onToggle = { viewModel.togglePermission("no_pause") },
-                                onHowToEnable = {
-                                    viewModel.showPermissionGuide("Pause app activity if unused: OFF", viewModel.guideFor("no_pause"))
-                                }
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            TextButton(
-                                onClick = { viewModel.runDiagnostics() },
-                                modifier = Modifier.testTag("run_diagnostics_button")
-                            ) {
-                                Text(
-                                    text = "Run diagnostics (shows why toggles or floating windows fail)",
-                                    color = Color(0xFF00E5FF),
-                                    fontSize = 12.sp
-                                )
-                            }
-
-                            // 7: Battery Optimization & Background Keeper (Stopper Prevention)
-                            PermissionTile(
-                                title = "Battery Optimization & Background Keeper",
-                                description = "Prevents system stoppers from killing One Hand Control service, edge handle, and quick toggles",
-                                isGranted = panelSettings.batteryOptimizationIgnored,
-                                icon = Icons.Default.BatteryChargingFull,
-                                onToggle = { viewModel.togglePermission("battery_optimization") },
-                                onHowToEnable = {
-                                    viewModel.showPermissionGuide(
-                                        "Background Keeper & Battery Exemption",
-                                        "Prevents Android from killing gesture services and background triggers in low memory states.\n\nSteps:\n1. Open Settings > Apps > Special access\n2. Battery optimization\n3. Select 'All apps' -> Find 'One Hand Control'\n4. Select 'Don't optimize'."
-                                    )
-                                }
-                            )
-                        }
+                    SlimSlider("Trigger Width", s.rightTriggerWidthDp, 6f..36f, "${s.rightTriggerWidthDp.toInt()}dp") {
+                        viewModel.updateSettings { cur -> cur.copy(rightTriggerWidthDp = it) }
                     }
-
-                    Spacer(modifier = Modifier.height(24.dp))
+                    SlimSlider("Trigger Length", s.rightTriggerLengthDp, 40f..280f, "${s.rightTriggerLengthDp.toInt()}dp") {
+                        viewModel.updateSettings { cur -> cur.copy(rightTriggerLengthDp = it) }
+                    }
                 }
             }
+
+            // 2. LEFT
+            item {
+                SlimCollapsibleSection("Left", "Left" in expanded, { toggleSec("Left") }) {
+                    SlimSlider("Trigger V Pos", s.leftTriggerVerticalPos.toFloat(), 0f..10f, "${s.leftTriggerVerticalPos}") {
+                        viewModel.updateSettings { cur -> cur.copy(leftTriggerVerticalPos = it.toInt()) }
+                    }
+                    SlimSlider("Trigger Width", s.leftTriggerWidthDp, 6f..36f, "${s.leftTriggerWidthDp.toInt()}dp") {
+                        viewModel.updateSettings { cur -> cur.copy(leftTriggerWidthDp = it) }
+                    }
+                    SlimSlider("Trigger Length", s.leftTriggerLengthDp, 40f..280f, "${s.leftTriggerLengthDp.toInt()}dp") {
+                        viewModel.updateSettings { cur -> cur.copy(leftTriggerLengthDp = it) }
+                    }
+                }
+            }
+
+            // 3. EDGE POSITION (all separate horizontal sliders)
+            item {
+                SlimCollapsibleSection("Edge Position", "Edge Position" in expanded, { toggleSec("Edge Position") }) {
+                    SlimSlider("Panel V Pos", s.verticalPosition.toFloat(), 0f..10f, "${s.verticalPosition}") {
+                        viewModel.updateVerticalPosition(it.toInt())
+                    }
+                    SlimSlider("Panel Height", s.panelHeightPercent.toFloat(), 30f..95f, "${s.panelHeightPercent}%") {
+                        viewModel.updateSettings { cur -> cur.copy(panelHeightPercent = it.toInt()) }
+                    }
+                    SlimSlider("Panel Width", s.panelWidthDp, 160f..340f, "${s.panelWidthDp.toInt()}dp") {
+                        viewModel.updateSettings { cur -> cur.copy(panelWidthDp = it) }
+                    }
+                    SlimSlider("Columns", s.columns.toFloat(), 1f..10f, "${s.columns}") {
+                        viewModel.updateColumns(it.toInt())
+                    }
+                    SlimSlider("Rows", s.rows.toFloat(), 1f..12f, "${s.rows}") {
+                        viewModel.updateRows(it.toInt())
+                    }
+                    SlimSlider("Rounded Corners", s.roundedCorners.toFloat(), 0f..10f, "${s.roundedCorners}") {
+                        viewModel.updateRoundedCorners(it.toInt())
+                    }
+                    SlimSlider("Horiz Offset", s.horizontalOffset.toFloat(), 0f..10f, "${s.horizontalOffset}") {
+                        viewModel.updateHorizontalOffset(it.toInt())
+                    }
+                    SlimSlider("Vert Offset", s.verticalOffsetDp.toFloat(), -60f..60f, "${s.verticalOffsetDp}dp") {
+                        viewModel.updateSettings { cur -> cur.copy(verticalOffsetDp = it.toInt()) }
+                    }
+                }
+            }
+
+            // 4. GESTURE CONTROLS
+            item {
+                SlimCollapsibleSection("Gesture Controls", "Gesture Controls" in expanded, { toggleSec("Gesture Controls") }) {
+                    GestureItems.forEach { g ->
+                        val bound = s.gestureBindings[g] ?: "None"
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFF0E2329), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 6.dp, vertical = 3.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(g, color = Color(0xFFE0F7FA), fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                                Text(bound, color = Color(0xFF80DEEA), fontSize = 9.sp)
+                            }
+                            Text(
+                                text = "+ Add Item",
+                                color = Color(0xFF00E5FF),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.clickable { viewModel.navigateTo(ActiveWindow.ADD_QUICK_ACCESS) }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 5. FLOATING WINDOW SIZE
+            item {
+                SlimCollapsibleSection("Floating Window Size", "Floating Window Size" in expanded, { toggleSec("Floating Window Size") }) {
+                    SlimSlider("Floating Length", s.floatingLengthDp, 200f..640f, "${s.floatingLengthDp.toInt()}dp") {
+                        viewModel.updateSettings { cur -> cur.copy(floatingLengthDp = it) }
+                    }
+                    SlimSlider("Floating Width", s.floatingWidthDp, 180f..380f, "${s.floatingWidthDp.toInt()}dp") {
+                        viewModel.updateSettings { cur -> cur.copy(floatingWidthDp = it) }
+                    }
+                }
+            }
+
+            // 6. FLOATING CENTRE
+            item {
+                SlimCollapsibleSection("Floating Centre", "Floating Centre" in expanded, { toggleSec("Floating Centre") }) {
+                    SlimSlider("Length Tool", s.quickToolLengthDp, 140f..380f, "${s.quickToolLengthDp.toInt()}dp") {
+                        viewModel.updateSettings { cur -> cur.copy(quickToolLengthDp = it) }
+                    }
+                    SlimSlider("Width Tool", s.quickToolWidthDp, 160f..360f, "${s.quickToolWidthDp.toInt()}dp") {
+                        viewModel.updateSettings { cur -> cur.copy(quickToolWidthDp = it) }
+                    }
+                    SlimSlider("Length Media", s.mediaControlLengthDp, 100f..280f, "${s.mediaControlLengthDp.toInt()}dp") {
+                        viewModel.updateSettings { cur -> cur.copy(mediaControlLengthDp = it) }
+                    }
+                    SlimSlider("Width Media", s.mediaControlWidthDp, 160f..360f, "${s.mediaControlWidthDp.toInt()}dp") {
+                        viewModel.updateSettings { cur -> cur.copy(mediaControlWidthDp = it) }
+                    }
+                    SlimSwitch("Remember closed position", s.rememberFloatingPosition) {
+                        viewModel.updateSettings { cur -> cur.copy(rememberFloatingPosition = it) }
+                    }
+                    SlimSwitch("Open floating apps bottom-down", s.openFloatingAppsBottomDown) {
+                        viewModel.updateSettings { cur -> cur.copy(openFloatingAppsBottomDown = it) }
+                    }
+                }
+            }
+
+            // 7. ONE HAND CONTROL
+            item {
+                SlimCollapsibleSection("One Hand Control", "One Hand Control" in expanded, { toggleSec("One Hand Control") }) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Size:", color = Color(0xFF80DEEA), fontSize = 10.sp)
+                        listOf(3.5f, 4.0f, 4.5f).forEach { sz ->
+                            val active = s.oneHandSize == sz
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (active) Color(0xFF00BCD4) else Color(0xFF102A31))
+                                    .clickable { viewModel.updateSettings { cur -> cur.copy(oneHandSize = sz) } }
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = if (sz == 4.0f) "4.0 (Full Display)" else "$sz",
+                                    color = Color.White,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                    SlimSwitch("Sync with Edge Panel", s.syncWithEdgePanel) {
+                        viewModel.updateSettings { cur -> cur.copy(syncWithEdgePanel = it) }
+                    }
+                }
+            }
+
+            // 8. PERMISSIONS + OTHER
+            item {
+                SlimCollapsibleSection("Permissions", "Permissions" in expanded, { toggleSec("Permissions") }) {
+                    val corePerms = listOf(
+                        Triple("accessibility", "Accessibility", s.accessibilityEnabled),
+                        Triple("media_controls", "Media Control", s.mediaControlsEnabled),
+                        Triple("usage_access", "Usage Access", s.usageAccessEnabled),
+                        Triple("floating_window", "Floating Window", s.floatingWindowEnabled),
+                        Triple("write_settings", "Modify Settings", s.writeSettingsEnabled),
+                        Triple("bg_start", "Background Launch", s.bgStartEnabled),
+                        Triple("battery_optimization", "Battery Optimization", s.batteryOptimizationIgnored),
+                        Triple("autostart", "Auto Start", s.autostartEnabled)
+                    )
+                    corePerms.forEach { (id, title, granted) ->
+                        SlimPermissionRow(title, granted) { viewModel.openSystemScreen(id) }
+                    }
+                    Spacer(Modifier.height(2.dp))
+                    Text("Other", color = Color(0xFF80DEEA), fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
+                    val otherPerms = listOf(
+                        Triple("notifications", "Notifications", s.notificationsEnabled),
+                        Triple("freeform", "Freeform Windows", s.freeformEnabled),
+                        Triple("lock_screen", "Show on Lock Screen", s.lockScreenEnabled),
+                        Triple("shortcuts", "Home Shortcuts", s.shortcutsEnabled),
+                        Triple("no_pause", "No Pause if Unused", s.noPauseEnabled)
+                    )
+                    otherPerms.forEach { (id, title, granted) ->
+                        SlimPermissionRow(title, granted) { viewModel.openSystemScreen(id) }
+                    }
+                }
+            }
+        }
+    }
+
+    guideType?.let { type ->
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissPermissionGuide() },
+            title = { Text(type.replace("_", " ").uppercase(), fontSize = 14.sp) },
+            text = { Text(viewModel.guideFor(type), fontSize = 11.sp) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.openSystemScreen(type) }) { Text("Open Settings") }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissPermissionGuide() }) { Text("Close") }
+            }
+        )
+    }
+}
+
+@Composable
+private fun SlimCollapsibleSection(
+    title: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF0E1D23), RoundedCornerShape(8.dp))
+            .border(0.5.dp, Color(0xFF1E4E59), RoundedCornerShape(8.dp))
+            .padding(4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(24.dp)
+                .clip(RoundedCornerShape(5.dp))
+                .clickable(onClick = onToggle)
+                .padding(horizontal = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(title, color = Color(0xFFE0F7FA), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Text(if (expanded) "Hide ▲" else "Show ▼", color = Color(0xFF00E5FF), fontSize = 9.sp)
+        }
+        AnimatedVisibility(visible = expanded) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(top = 3.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                content = content
+            )
         }
     }
 }
 
 @Composable
-fun PermissionTile(
-    title: String,
-    description: String,
-    isGranted: Boolean,
-    icon: ImageVector,
-    onToggle: () -> Unit,
-    onHowToEnable: () -> Unit
+private fun SlimSlider(
+    label: String,
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    valueText: String,
+    onValueChange: (Float) -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(Color(0xFF0F2E36))
-            .padding(10.dp)
+    Row(
+        modifier = Modifier.fillMaxWidth().height(24.dp).padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(30.dp)
-                        .clip(CircleShape)
-                        .background(if (isGranted) Color(0xFF00E5FF).copy(alpha = 0.2f) else Color(0xFF1B4048)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = title,
-                        tint = if (isGranted) Color(0xFF00E5FF) else Color(0xFF80DEEA),
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Column {
-                    Text(
-                        text = title,
-                        color = Color(0xFFE0F7FA),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = description,
-                        color = Color(0xFF80DEEA).copy(alpha = 0.75f),
-                        fontSize = 9.sp,
-                        lineHeight = 13.sp
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(6.dp))
-
-            Switch(
-                checked = isGranted,
-                onCheckedChange = { onToggle() },
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color(0xFF00E5FF),
-                    checkedTrackColor = Color(0xFF005662),
-                    uncheckedThumbColor = Color(0xFF80DEEA),
-                    uncheckedTrackColor = Color(0xFF1B4048)
-                ),
-                modifier = Modifier.testTag("perm_switch_${title.lowercase().replace(" ", "_")}")
+        Text(
+            label,
+            color = Color(0xFF80DEEA),
+            fontSize = 10.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.width(88.dp)
+        )
+        Slider(
+            value = value.coerceIn(range.start, range.endInclusive),
+            onValueChange = onValueChange,
+            valueRange = range,
+            modifier = Modifier.weight(1f).height(18.dp),
+            colors = SliderDefaults.colors(
+                thumbColor = Color(0xFF00E5FF),
+                activeTrackColor = Color(0xFF00BCD4),
+                inactiveTrackColor = Color(0xFF1E4E59)
             )
-        }
-
-        // "How to enable?" guide button
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 2.dp),
-            horizontalArrangement = Arrangement.End
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .clickable { onHowToEnable() }
-                    .padding(horizontal = 4.dp, vertical = 2.dp)
-                    .testTag("how_to_enable_${title.lowercase().replace(" ", "_")}")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.HelpOutline,
-                    contentDescription = "How to enable",
-                    tint = Color(0xFF00E5FF),
-                    modifier = Modifier.size(12.dp)
-                )
-                Spacer(modifier = Modifier.width(3.dp))
-                Text(
-                    text = "How to enable?",
-                    color = Color(0xFF00E5FF),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        }
+        )
+        Text(valueText, color = Color(0xFFE0F7FA), fontSize = 9.sp, modifier = Modifier.width(36.dp).padding(start = 4.dp))
     }
 }
 
+@Composable
+private fun SlimSwitch(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(24.dp)
+            .clickable { onCheckedChange(!checked) }
+            .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, color = Color(0xFFE0F7FA), fontSize = 10.sp, modifier = Modifier.weight(1f))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = Modifier.height(18.dp),
+            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Color(0xFF00BCD4))
+        )
+    }
+}
+
+@Composable
+private fun SlimPermissionRow(title: String, granted: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(24.dp)
+            .clip(RoundedCornerShape(5.dp))
+            .background(Color(0xFF12262E))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(title, color = Color(0xFFE0F7FA), fontSize = 10.sp)
+        Text(
+            text = if (granted) "Granted" else "Grant →",
+            color = if (granted) Color(0xFF34D399) else Color(0xFFFBBF24),
+            fontSize = 9.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}

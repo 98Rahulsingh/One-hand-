@@ -96,7 +96,7 @@ fun AddQuickAccessModal(
     }
 
     FloatingWindowCard(
-        title = "Add Quick Access Item",
+        title = "Add Item",
         initialGeometry = panelSettings.quickAccessGeometry,
         onGeometryChange = { x, y, w, h ->
             viewModel.updateQuickAccessGeometry(x, y, w, h)

@@ -56,7 +56,7 @@ class MainActivity : ComponentActivity() {
     window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
     enableEdgeToEdge()
     lifecycleScope.launch {
-      viewModel.isPanelOpen.collect { open -> if (!open && !handedOver) finish() }
+      viewModel.isPanelOpen.collect { open -> if (!open && !handedOver && !viewModel.isAwaitingPermissionReturn() && viewModel.activeWindow.value != ActiveWindow.PANEL_SETTINGS) finish() }
     }
     setContent {
       MyApplicationTheme(darkTheme = true) {
@@ -79,6 +79,7 @@ class MainActivity : ComponentActivity() {
 
   override fun onResume() {
     super.onResume()
+    viewModel.clearAwaitingPermissionReturn()
     viewModel.refreshPermissions()
     viewModel.refreshQuickStates()
   }
@@ -86,7 +87,7 @@ class MainActivity : ComponentActivity() {
   override fun onStop() {
     super.onStop()
     viewModel.setActivityVisible(false)
-    if (!handedOver) {
+    if (!handedOver && !viewModel.isAwaitingPermissionReturn() && viewModel.activeWindow.value != ActiveWindow.PANEL_SETTINGS) {
       viewModel.navigateTo(ActiveWindow.MAIN_PANEL)
       viewModel.togglePanel(false)
     }
@@ -102,9 +103,10 @@ class MainActivity : ComponentActivity() {
 
   // Quick Settings tile opens the settings window, a normal launch opens the panel
   private fun handleIntent(i: Intent?) {
+    if (viewModel.isAwaitingPermissionReturn()) return
     if (i?.getBooleanExtra("open_settings", false) == true) {
       viewModel.navigateTo(ActiveWindow.PANEL_SETTINGS)
-    } else {
+    } else if (viewModel.activeWindow.value != ActiveWindow.PANEL_SETTINGS) {
       viewModel.navigateTo(ActiveWindow.MAIN_PANEL)
     }
   }
