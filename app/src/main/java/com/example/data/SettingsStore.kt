@@ -53,7 +53,11 @@ class SettingsStore(ctx: Context) {
             mediaControlWidthDp = p.getFloat("mediaControlWidthDp", d.mediaControlWidthDp),
             rememberFloatingPosition = p.getBoolean("rememberFloatingPosition", d.rememberFloatingPosition),
             openFloatingAppsBottomDown = p.getBoolean("openFloatingAppsBottomDown", d.openFloatingAppsBottomDown),
+            oneHandModeEnabled = p.getBoolean("oneHandModeEnabled", d.oneHandModeEnabled),
             oneHandSize = p.getFloat("oneHandSize", d.oneHandSize),
+            oneHandCornerRight = p.getBoolean("oneHandCornerRight", d.oneHandCornerRight),
+            oneHandOledBlack = p.getBoolean("oneHandOledBlack", d.oneHandOledBlack),
+            oneHandUnrestrictedFloating = p.getBoolean("oneHandUnrestrictedFloating", d.oneHandUnrestrictedFloating),
             syncWithEdgePanel = p.getBoolean("syncWithEdgePanel", d.syncWithEdgePanel),
             showApkNameInGroupList = p.getBoolean("showApkNameInGroupList", d.showApkNameInGroupList),
             showActionNameInList = p.getBoolean("showActionNameInList", d.showActionNameInList),
@@ -98,7 +102,11 @@ class SettingsStore(ctx: Context) {
             .putFloat("mediaControlWidthDp", s.mediaControlWidthDp)
             .putBoolean("rememberFloatingPosition", s.rememberFloatingPosition)
             .putBoolean("openFloatingAppsBottomDown", s.openFloatingAppsBottomDown)
+            .putBoolean("oneHandModeEnabled", s.oneHandModeEnabled)
             .putFloat("oneHandSize", s.oneHandSize)
+            .putBoolean("oneHandCornerRight", s.oneHandCornerRight)
+            .putBoolean("oneHandOledBlack", s.oneHandOledBlack)
+            .putBoolean("oneHandUnrestrictedFloating", s.oneHandUnrestrictedFloating)
             .putBoolean("syncWithEdgePanel", s.syncWithEdgePanel)
             .putBoolean("showApkNameInGroupList", s.showApkNameInGroupList)
             .putBoolean("showActionNameInList", s.showActionNameInList)

@@ -82,9 +82,19 @@ fun OneHandApp(
         }
     }
 
+    val oneHandScale = when (panelSettings.oneHandSize) {
+        3.5f -> 0.56f
+        4.5f -> 0.72f
+        else -> 0.64f // 4.0" full mobile mini-display
+    }
     Box(
         modifier = modifier
             .fillMaxSize()
+            .then(
+                if (panelSettings.oneHandModeEnabled && panelSettings.oneHandOledBlack)
+                    Modifier.background(Color.Black)
+                else Modifier
+            )
             .then(
                 if (overlayMode) Modifier else Modifier
                     .background(
