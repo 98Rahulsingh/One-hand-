@@ -73,6 +73,7 @@ fun AddQuickAccessModal(
     val quickSettings by viewModel.quickSettings.collectAsState()
 
     var newGroupMode by remember { mutableStateOf(viewModel.consumeNewGroupRequest()) }
+    var selectedAddTab by remember { mutableStateOf("GROUPS") }
     var newGroupName by remember { mutableStateOf("") }
     var newTileName by remember { mutableStateOf("") }
     val tileTargets by viewModel.tileTargets.collectAsState()
@@ -109,30 +110,34 @@ fun AddQuickAccessModal(
                 .fillMaxSize()
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
-            // Tabs: APPS, SHORTCUTS, ACTIONS, QUICK TILES
+            // Shared Add Item tabs: Groups, Actions and Apps. Quick Settings tiles
+            // remain available as a sub-view inside Actions rather than a fourth tab.
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                FilterPill("APPS", !tilesTab && filterType == ItemType.APP, {
-                    viewModel.setTilesTab(false); viewModel.setItemFilterType(ItemType.APP)
-                }, "filter_pill_apps")
-                FilterPill("SHORTCUTS", !tilesTab && filterType == ItemType.SHORTCUT, {
-                    viewModel.setTilesTab(false); viewModel.setItemFilterType(ItemType.SHORTCUT)
-                }, "filter_pill_shortcuts")
-                FilterPill("ACTIONS", !tilesTab && filterType == ItemType.ACTION, {
-                    viewModel.setTilesTab(false); viewModel.setItemFilterType(ItemType.ACTION)
+                FilterPill("GROUPS", selectedAddTab == "GROUPS", {
+                    selectedAddTab = "GROUPS"
+                    viewModel.setTilesTab(false)
+                    viewModel.setItemFilterType(ItemType.APP)
+                }, "filter_pill_groups")
+                FilterPill("ACTIONS", selectedAddTab == "ACTIONS", {
+                    selectedAddTab = "ACTIONS"
+                    viewModel.setTilesTab(false)
+                    viewModel.setItemFilterType(ItemType.ACTION)
                 }, "filter_pill_actions")
-                FilterPill("QUICK TILES", tilesTab, { viewModel.setTilesTab(true) }, "filter_pill_tiles")
+                FilterPill("APPS", selectedAddTab == "APPS", {
+                    selectedAddTab = "APPS"
+                    viewModel.setTilesTab(false)
+                    viewModel.setItemFilterType(ItemType.APP)
+                }, "filter_pill_apps")
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            if (!tilesTab) {
+            if (!tilesTab && selectedAddTab == "GROUPS") {
                 Text(
-                    text = "Add to group",
+                    text = "Manage groups and choose their apps",
                     color = Color(0xFF9CA3AF),
                     fontSize = 11.sp
                 )
@@ -224,7 +229,25 @@ fun AddQuickAccessModal(
                     }
                 }
                 Spacer(modifier = Modifier.height(4.dp))
+            } else if (!tilesTab) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Add to group", color = Color(0xFF9CA3AF), fontSize = 10.sp)
+                    Spacer(Modifier.width(8.dp))
+                    Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        groups.forEach { group ->
+                            FilterPill(group, group == target, { viewModel.setAddTargetGroup(group) }, "target_group_$group")
+                        }
+                    }
+                }
+                if (selectedAddTab == "ACTIONS") {
+                    TextButton(onClick = { viewModel.setTilesTab(true) }) { Text("Quick Settings Tiles +", color = Color(0xFF00E5FF), fontSize = 11.sp) }
+                }
             } else {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Quick Settings Tiles", color = Color(0xFF9CA3AF), fontSize = 11.sp)
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = { viewModel.setTilesTab(false) }) { Text("Back to Actions", color = Color(0xFF00E5FF), fontSize = 10.sp) }
+                }
                 Text(
                     text = "Tick the tiles you want in the quick tile row",
                     color = Color(0xFF9CA3AF),
