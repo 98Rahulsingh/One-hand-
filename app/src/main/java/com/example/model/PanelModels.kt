@@ -77,7 +77,7 @@ data class PanelSettings(
     val roundedCorners: Int = 5,      // 0 = Square, 10 = Maximum curve
     val horizontalOffset: Int = 0,    // 0 = Edge attached, 10 = Floating
     val verticalPosition: Int = 5,    // 0 = Top, 10 = Bottom
-    val columns: Int = 2,             // 1 to 10
+    val columns: Int = 3,             // 1 to 4
     val rows: Int = 6,                // 1 to 10
     val isRightEdge: Boolean = true,  // Left or Right edge trigger
     val handleOpacity: Float = 0.85f,
@@ -116,9 +116,13 @@ data class PanelSettings(
 )
 
 enum class ActiveWindow {
-    MAIN_PANEL,        // Window 1: One Hand Edge Side Panel (opens on launch)
-    ADD_QUICK_ACCESS,  // Window 3: Add/Remove Quick Access Modal (as in image 1)
-    PANEL_SETTINGS     // Window 4: Panel Settings & Permissions (as in image 2)
+    MAIN_PANEL,
+    QUICK_PANEL,
+    ONE_HAND_MODE,
+    MEDIA_CONTROL,
+    QUICK_TOOLS,
+    ADD_QUICK_ACCESS,
+    PANEL_SETTINGS
 }
 
 

@@ -85,11 +85,9 @@ class MainActivity : ComponentActivity() {
 
   override fun onStop() {
     super.onStop()
+    // Do not reset the current window when an Android permission/settings activity is opened.
+    // The same ViewModel and Compose overlay remain alive; onResume refreshes permission state.
     viewModel.setActivityVisible(false)
-    if (!handedOver) {
-      viewModel.navigateTo(ActiveWindow.MAIN_PANEL)
-      viewModel.togglePanel(false)
-    }
   }
 
   private fun handOverToOverlay() {

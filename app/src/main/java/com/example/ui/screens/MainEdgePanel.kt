@@ -330,15 +330,15 @@ fun MainEdgePanel(
                                 )
                             }
 
-                            // Hide / Unhide Brightness, Volume & Media Sliders
+                            // Switch to the matching-geometry One Hand mini-screen.
                             IconButton(
-                                onClick = { viewModel.toggleTopMediaSection() },
-                                modifier = Modifier.size(26.dp).testTag("header_hide_unhide_media")
+                                onClick = { viewModel.navigateTo(ActiveWindow.ONE_HAND_MODE) },
+                                modifier = Modifier.size(26.dp).testTag("header_one_hand_mode")
                             ) {
                                 Icon(
-                                    imageVector = if (panelSettings.isTopMediaSectionVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                    contentDescription = if (panelSettings.isTopMediaSectionVisible) "Hide media & sliders" else "Show media & sliders",
-                                    tint = if (panelSettings.isTopMediaSectionVisible) Color(0xFF80DEEA) else Color(0xFFFFD54F),
+                                    imageVector = Icons.Default.OpenInFull,
+                                    contentDescription = "One Hand Mode",
+                                    tint = Color(0xFF80DEEA),
                                     modifier = Modifier.size(15.dp)
                                 )
                             }
@@ -371,43 +371,8 @@ fun MainEdgePanel(
                         }
                     }
 
-                    // ==========================================
-                    // TOP: Collapsible Brightness, Volume, Seek, 6 Buttons
-                    // ==========================================
-                    AnimatedVisibility(
-                        visible = panelSettings.isTopMediaSectionVisible,
-                        enter = expandVertically() + fadeIn(),
-                        exit = shrinkVertically() + fadeOut()
-                    ) {
-                        Column {
-                            var mediaExpanded by remember { mutableStateOf(false) }
-                            CompactMediaAndSliders(
-                                mediaState = mediaState,
-                                onBrightnessChange = { viewModel.setBrightness(it) },
-                                onVolumeChange = { viewModel.setVolume(it) },
-                                onSeek = { viewModel.seekMedia(it) },
-                                onPrev = { viewModel.previousVideo() },
-                                onRewind15 = { viewModel.skipBackward15() },
-                                onPlayPause = { viewModel.togglePlayPause() },
-                                onForward15 = { viewModel.skipForward15() },
-                                onNext = { viewModel.nextVideoOrChapter() },
-                                onExpand = { mediaExpanded = !mediaExpanded }
-                            )
-                            if (mediaExpanded) {
-                                Spacer(modifier = Modifier.height(4.dp))
-                                ActiveMediaStreams(
-                                    streams = mediaState.activeStreams,
-                                    mediaAccessOn = panelSettings.mediaControlsEnabled,
-                                    onSelect = { viewModel.switchActiveMedia(it) },
-                                    onEnableAccess = { viewModel.togglePermission("media_controls") },
-                                    onScan = { viewModel.rescanMedia() }
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                        }
-                    }
+                    // Media controls live in the dedicated Quick and Media panels.
 
-                    // ==========================================
                     // MIDDLE SECTION:
                     // ABCD Vertical Scroller on closest edge side
                     // Apps Grid with '+' tile at the end

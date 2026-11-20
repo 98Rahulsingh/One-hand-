@@ -135,6 +135,9 @@ class QuickActions(private val ctx: Context, private val perms: PermissionsManag
             "airplane" -> airplane()
             "data" -> mobileData()
             "hotspot" -> viaShade("Hotspot", listOf("Hotspot", "Tethering", "Portable")) { hotspotOn = !hotspotOn }
+            "location" -> viaShade("Location", listOf("Location", "GPS"))
+            "reading_mode" -> viaShade("Reading mode", listOf("Reading mode", "Reading", "Eye comfort"))
+            "active_apps" -> global(AccessibilityService.GLOBAL_ACTION_RECENTS, "Active apps")
             "split" -> splitScreen()
             "prev_app" -> previousApp()
             "floating" -> floating()
@@ -390,8 +393,9 @@ class QuickActions(private val ctx: Context, private val perms: PermissionsManag
         val w = (dm.widthPixels * 0.88).toInt()
         val h = (dm.heightPixels * 0.55).toInt()
         val l = (dm.widthPixels - w) / 2
-        val t = (dm.heightPixels - h) / 3
-        return Rect(l, t, l + w, t + h)
+        // New floating launches begin in the lower half; saved user positions still win above.
+        val t = (dm.heightPixels - h - (dm.heightPixels * 0.04f).toInt()).coerceAtLeast(dm.heightPixels / 2)
+        return Rect(l, t, l + w, minOf(t + h, dm.heightPixels))
     }
 
     /** Opens an installed app in a small floating window (if the phone has freeform windows turned on). */

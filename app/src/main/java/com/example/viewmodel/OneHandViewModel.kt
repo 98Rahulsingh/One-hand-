@@ -66,14 +66,14 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         listOf(
             "Recent",
             "Most Used",
-            "Tools",
-            "Social",
-            "Video",
-            "Music",
-            "Images",
-            "Communication",
             "Productivity",
-            "Games"
+            "System",
+            "Google",
+            "Work",
+            "Video Player",
+            "Image",
+            "Games",
+            "Casual"
         )
     )
     val availableCategories: StateFlow<List<String>> = _availableCategories.asStateFlow()
@@ -175,7 +175,11 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         }
         actions.targets = _tileTargets.value
         actions.nameOf = { id -> _quickSettings.value.find { it.id == id }?.name ?: id }
-        layout.loadList("categories")?.let { _availableCategories.value = it }
+        layout.loadList("categories")?.let { saved ->
+            val oldBuiltIns = setOf("Tools", "Social", "Video", "Music", "Images", "Communication", "All", "Unused")
+            val requested = listOf("Recent", "Most Used", "Productivity", "System", "Google", "Work", "Video Player", "Image", "Games", "Casual")
+            _availableCategories.value = (requested + saved.filter { it !in oldBuiltIns && it !in requested }).distinct()
+        }
         _availableCategories.update { ensureBuiltIns(it) }
         layout.loadList("tileOrder")?.let { order ->
             _quickSettings.update { l -> l.sortedBy { q -> order.indexOf(q.id).let { i -> if (i < 0) Int.MAX_VALUE else i } } }
@@ -244,9 +248,24 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
     fun guideFor(type: String): String = perms.guideText(type)
 
     fun openSystemScreen(type: String) {
-        perms.systemScreen(type)?.let { appContext.startActivity(it) }
+        perms.systemScreen(type)?.let { intent ->
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            appContext.startActivity(intent)
+        }
         _guideType.value = null
         _permissionDialogInfo.value = null
+    }
+
+    fun openPanelAction(id: String) {
+        val target = when (id) {
+            "open_edge_panel" -> ActiveWindow.MAIN_PANEL
+            "open_quick_panel" -> ActiveWindow.QUICK_PANEL
+            "open_one_hand_mode" -> ActiveWindow.ONE_HAND_MODE
+            "open_media_control" -> ActiveWindow.MEDIA_CONTROL
+            "open_quick_tools" -> ActiveWindow.QUICK_TOOLS
+            else -> null
+        }
+        if (target != null) navigateTo(target)
     }
 
     fun refreshQuickStates() {
@@ -544,13 +563,7 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         saveLayout()
     }
 
-    private fun ensureBuiltIns(list: List<String>): List<String> {
-        val out = list.toMutableList()
-        for (name in listOf("Unused", "All")) {
-            if (name !in out) out.add(if ("Most Used" in out) out.indexOf("Most Used") + 1 else 0, name)
-        }
-        return out
-    }
+    private fun ensureBuiltIns(list: List<String>): List<String> = list.distinct()
 
     fun setGroupManual(group: String, manual: Boolean) {
         _manualGroups.update { if (manual) it + group else it - group }
@@ -600,7 +613,7 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // Quick Settings - Direct hardware toggle in-place (no redirection!)
-    private val needsCleanScreen = setOf("split", "prev_app", "lock", "screenshot", "home", "back", "notifications", "power")
+    private val needsCleanScreen = setOf("split", "prev_app", "active_apps", "lock", "screenshot", "home", "back", "notifications", "power")
 
     fun toggleQuickSetting(settingId: String) {
         if (settingId in needsCleanScreen) {
@@ -657,7 +670,7 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Opens quick settings; the next icon you press there becomes what this tile presses. */
-    fun startTrackTile(id: String) {
+    fun startTrackTile(id: String, returnToTiles: Boolean = true) {
         val svc = PanelAccessibilityService.instance
         if (svc == null || !perms.isAccessibilityOn()) {
             showToast("Turn on Accessibility first")
@@ -675,8 +688,13 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
             } else {
                 showToast("No icon was pressed")
             }
-            openAddWindow(forTiles = true)
+            openAddWindow(forTiles = returnToTiles)
         }
+    }
+
+    fun startTrackAction(itemId: String) {
+        val actionId = actionIdFor(itemId) ?: return
+        startTrackTile(actionId, returnToTiles = false)
     }
 
     /** Looks for players again. Restarts the notification listener if needed. */
@@ -809,13 +827,20 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
     private fun actionIdFor(itemId: String): String? = mapOf(
         "act_wifi" to "wifi", "act_bt" to "bluetooth", "act_data" to "data", "act_hotspot" to "hotspot",
         "act_screenshot" to "screenshot", "act_lock" to "lock", "act_split" to "split",
-        "act_floating" to "floating", "act_torch" to "torch", "act_mute" to "mute"
+        "act_floating" to "floating", "act_torch" to "torch", "act_mute" to "mute",
+        "act_airplane" to "airplane", "act_darkmode" to "darkmode", "act_battery_saver" to "battery_saver",
+        "act_location" to "location", "act_active_apps" to "active_apps", "act_reading_mode" to "reading_mode"
     )[itemId]
 
     fun launchApp(app: AppItem) {
         if (app.type == ItemType.ACTION) {
-            val id = actionIdFor(app.id)
-            if (id != null) toggleQuickSetting(id) else showToast("${app.name} is not available")
+            if (app.id == "act_none") { showToast("No action assigned"); return }
+            if (app.id.startsWith("panel_")) {
+                openPanelAction(app.id.removePrefix("panel_"))
+            } else {
+                val id = actionIdFor(app.id)
+                if (id != null) toggleQuickSetting(id) else showToast("${app.name} is not available")
+            }
             return
         }
         val opened = app.packageName.isNotBlank() && actions.launch(app.packageName)
@@ -872,6 +897,7 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
             AppItem("sc_navigate", "Navigate Home", "com.google.android.apps.maps.home", ItemType.SHORTCUT, "Tools", "home", 0xFF4CAF50, true, "1-tap GPS route"),
 
             // Actions
+            AppItem("act_none", "None", "", ItemType.ACTION, "System", "block", 0xFF90A4AE, true, "No action assigned"),
             AppItem("act_wifi", "Wi-Fi Toggle", "", ItemType.ACTION, "Tools", "wifi", 0xFF00E5FF, true, "Quick wireless control"),
             AppItem("act_bt", "Bluetooth Toggle", "", ItemType.ACTION, "Tools", "bluetooth", 0xFF2196F3, true, "Pair & connect devices"),
             AppItem("act_data", "Mobile Data", "", ItemType.ACTION, "Tools", "cell_tower", 0xFF00BCD4, true, "Cellular connection"),
@@ -881,7 +907,18 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
             AppItem("act_split", "Split Screen", "", ItemType.ACTION, "Tools", "vertical_split", 0xFF4CAF50, true, "Multitask two apps"),
             AppItem("act_floating", "Floating App", "", ItemType.ACTION, "Tools", "picture_in_picture", 0xFF00E5FF, true, "Open in window mode"),
             AppItem("act_torch", "Flashlight", "", ItemType.ACTION, "Tools", "flashlight_on", 0xFFFFD600, true, "Toggle LED flash"),
-            AppItem("act_mute", "Sound / Mute", "", ItemType.ACTION, "Tools", "volume_up", 0xFFE040FB, true, "Toggle ringer profile")
+            AppItem("act_mute", "Sound / Mute", "", ItemType.ACTION, "Tools", "volume_up", 0xFFE040FB, true, "Toggle ringer profile"),
+            AppItem("act_airplane", "Airplane Mode", "", ItemType.ACTION, "System", "airplanemode_active", 0xFFFF9800, true, "Toggle airplane mode"),
+            AppItem("act_darkmode", "Dark Mode", "", ItemType.ACTION, "System", "dark_mode", 0xFF9575CD, true, "Toggle dark theme"),
+            AppItem("act_battery_saver", "Battery Saver", "", ItemType.ACTION, "System", "battery_saver", 0xFF66BB6A, true, "Toggle battery saver"),
+            AppItem("act_location", "Location Service", "", ItemType.ACTION, "System", "location_on", 0xFF4FC3F7, true, "Open location controls"),
+            AppItem("act_active_apps", "Active Apps", "", ItemType.ACTION, "System", "apps", 0xFF80CBC4, true, "Show recent apps"),
+            AppItem("act_reading_mode", "Reading Mode", "", ItemType.ACTION, "System", "menu_book", 0xFFFFCC80, true, "Open reading mode controls"),
+            AppItem("panel_open_edge_panel", "Open Edge Panel", "", ItemType.ACTION, "System", "view_sidebar", 0xFF00E5FF, true, "Open Edge Panel"),
+            AppItem("panel_open_quick_panel", "Open Quick Panel", "", ItemType.ACTION, "System", "tune", 0xFF00E5FF, true, "Open Quick Panel"),
+            AppItem("panel_open_one_hand_mode", "Open One Hand Mode", "", ItemType.ACTION, "System", "smartphone", 0xFF00E5FF, true, "Open One Hand Mode"),
+            AppItem("panel_open_media_control", "Open Media Control", "", ItemType.ACTION, "System", "play_circle", 0xFF00E5FF, true, "Open Media Control"),
+            AppItem("panel_open_quick_tools", "Open Quick Tools", "", ItemType.ACTION, "System", "grid_view", 0xFF00E5FF, true, "Open Quick Tools")
         )
     }
 
@@ -907,7 +944,10 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
             q("notifications", "Notify", "notifications", 0xFF29B6F6, "Pull down notifications", visible = false),
             q("home", "Home", "home", 0xFF29B6F6, "Go to home screen", visible = false),
             q("back", "Back", "back", 0xFF29B6F6, "Back button", visible = false),
-            q("power", "Power", "power_settings", 0xFFEF5350, "Power menu", visible = false)
+            q("power", "Power", "power_settings", 0xFFEF5350, "Power menu", visible = false),
+            q("location", "Location", "location_on", 0xFF4FC3F7, "Location service"),
+            q("active_apps", "Active Apps", "apps", 0xFF80CBC4, "Show active apps"),
+            q("reading_mode", "Reading", "menu_book", 0xFFFFCC80, "Reading mode")
         )
     }
 }

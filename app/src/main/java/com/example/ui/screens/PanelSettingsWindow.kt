@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -78,6 +79,7 @@ fun PanelSettingsWindow(
     val permissionDialogInfo by viewModel.permissionDialogInfo.collectAsState()
     val guideType by viewModel.guideType.collectAsState()
     var selectedTab by remember { mutableStateOf("Side Bar") }
+    val settingsListState = rememberLazyListState()
 
     // Dialog for "How to enable?"
     permissionDialogInfo?.let { (title, description) ->
@@ -122,7 +124,7 @@ fun PanelSettingsWindow(
     }
 
     FloatingWindowCard(
-        title = "Panel Setting",
+        title = "SETTINGS",
         initialGeometry = panelSettings.settingsGeometry,
         onGeometryChange = { x, y, w, h ->
             viewModel.updateSettingsGeometry(x, y, w, h)
@@ -136,6 +138,7 @@ fun PanelSettingsWindow(
                 .background(Color(0xFF081C20))
         ) {
             LazyColumn(
+                state = settingsListState,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
@@ -185,7 +188,7 @@ fun PanelSettingsWindow(
                                 title = "Columns",
                                 subtitle = "App icons per row in side panel",
                                 value = panelSettings.columns,
-                                range = 1..10,
+                                range = 1..4,
                                 onValueChange = { viewModel.updateColumns(it) },
                                 testTag = "slider_columns"
                             )

@@ -2,6 +2,8 @@ package com.example.ui
 
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -53,6 +55,7 @@ import com.example.ui.components.EdgeTriggerHandle
 import com.example.ui.screens.AddQuickAccessModal
 import com.example.ui.screens.MainEdgePanel
 import com.example.ui.screens.PanelSettingsWindow
+import com.example.ui.screens.V5FloatingPanel
 import com.example.viewmodel.OneHandViewModel
 
 @Composable
@@ -98,6 +101,30 @@ fun OneHandApp(
                     )
                     .statusBarsPadding()
             )
+            .pointerInput(activeWindow) {
+                var drag = 0f
+                detectHorizontalDragGestures(
+                    onHorizontalDrag = { change, amount -> drag += amount; change.consume() },
+                    onDragEnd = {
+                        if (drag > 65f) {
+                            when (activeWindow) {
+                                ActiveWindow.MAIN_PANEL -> viewModel.navigateTo(ActiveWindow.ONE_HAND_MODE)
+                                ActiveWindow.QUICK_PANEL -> viewModel.navigateTo(ActiveWindow.ONE_HAND_MODE)
+                                ActiveWindow.ONE_HAND_MODE -> viewModel.navigateTo(ActiveWindow.MAIN_PANEL)
+                                else -> Unit
+                            }
+                        } else if (drag < -65f) {
+                            when (activeWindow) {
+                                ActiveWindow.MAIN_PANEL -> viewModel.navigateTo(ActiveWindow.QUICK_PANEL)
+                                ActiveWindow.QUICK_PANEL -> viewModel.navigateTo(ActiveWindow.MAIN_PANEL)
+                                ActiveWindow.ONE_HAND_MODE -> viewModel.navigateTo(ActiveWindow.QUICK_PANEL)
+                                else -> Unit
+                            }
+                        }
+                        drag = 0f
+                    }
+                )
+            }
             .testTag("one_hand_app_root")
     ) {
         // Simulated system home screen canvas underneath
@@ -152,6 +179,11 @@ fun OneHandApp(
             ) + fadeOut()
         ) {
             MainEdgePanel(viewModel = viewModel)
+        }
+
+        // V5 standalone panels and the unified Quick/One-Hand panel modes.
+        if (activeWindow in setOf(ActiveWindow.QUICK_PANEL, ActiveWindow.ONE_HAND_MODE, ActiveWindow.MEDIA_CONTROL, ActiveWindow.QUICK_TOOLS)) {
+            V5FloatingPanel(viewModel = viewModel, window = activeWindow)
         }
 
         // Window 2: Add Quick Access Modal (Matching Image 1)

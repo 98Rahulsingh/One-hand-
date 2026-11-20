@@ -359,11 +359,41 @@ fun AddQuickAccessModal(
                     }
                 } else {
                     items(filteredList, key = { it.id }) { item ->
-                        QuickAccessListItem(
-                            item = item,
-                            isAdded = isInGroup(item, target, groupAdded, groupRemoved, manualGroups),
-                            onToggle = { viewModel.toggleItemInGroup(item.id, target) }
-                        )
+                        Column {
+                            QuickAccessListItem(
+                                item = item,
+                                isAdded = isInGroup(item, target, groupAdded, groupRemoved, manualGroups),
+                                onToggle = { viewModel.toggleItemInGroup(item.id, target) }
+                            )
+                            val trackId = when (item.id) {
+                                "act_wifi" -> "wifi"
+                                "act_bt" -> "bluetooth"
+                                "act_data" -> "data"
+                                "act_hotspot" -> "hotspot"
+                                "act_airplane" -> "airplane"
+                                "act_floating" -> "floating"
+                                "act_lock" -> "lock"
+                                "act_screenshot" -> "screenshot"
+                                "act_split" -> "split"
+                                "act_darkmode" -> "darkmode"
+                                "act_battery_saver" -> "battery_saver"
+                                "act_location" -> "location"
+                                "act_active_apps" -> "active_apps"
+                                "act_reading_mode" -> "reading_mode"
+                                else -> null
+                            }
+                            if (item.type == ItemType.ACTION && trackId != null) {
+                                val saved = tileTargets[trackId]
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    TextButton(onClick = { viewModel.startTrackAction(item.id) }) {
+                                        Text(if (saved == null) "◎ Track / Target" else "◎ ${saved.label.ifBlank { "Saved target" }}", color = Color(0xFF00E5FF), fontSize = 10.sp)
+                                    }
+                                    if (saved != null) TextButton(onClick = { viewModel.clearTileTarget(trackId) }) {
+                                        Text("↻ Reset", color = Color(0xFFFFCC80), fontSize = 10.sp)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
