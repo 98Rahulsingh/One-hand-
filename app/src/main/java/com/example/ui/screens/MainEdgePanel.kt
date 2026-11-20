@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import com.example.model.MediaStreamItem
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import com.example.model.ItemType
 import com.example.system.AppIcons
@@ -372,42 +373,6 @@ fun MainEdgePanel(
                     }
 
                     // ==========================================
-                    // TOP: Collapsible Brightness, Volume, Seek, 6 Buttons
-                    // ==========================================
-                    AnimatedVisibility(
-                        visible = panelSettings.isTopMediaSectionVisible,
-                        enter = expandVertically() + fadeIn(),
-                        exit = shrinkVertically() + fadeOut()
-                    ) {
-                        Column {
-                            var mediaExpanded by remember { mutableStateOf(false) }
-                            CompactMediaAndSliders(
-                                mediaState = mediaState,
-                                onBrightnessChange = { viewModel.setBrightness(it) },
-                                onVolumeChange = { viewModel.setVolume(it) },
-                                onSeek = { viewModel.seekMedia(it) },
-                                onPrev = { viewModel.previousVideo() },
-                                onRewind15 = { viewModel.skipBackward15() },
-                                onPlayPause = { viewModel.togglePlayPause() },
-                                onForward15 = { viewModel.skipForward15() },
-                                onNext = { viewModel.nextVideoOrChapter() },
-                                onExpand = { mediaExpanded = !mediaExpanded }
-                            )
-                            if (mediaExpanded) {
-                                Spacer(modifier = Modifier.height(4.dp))
-                                ActiveMediaStreams(
-                                    streams = mediaState.activeStreams,
-                                    mediaAccessOn = panelSettings.mediaControlsEnabled,
-                                    onSelect = { viewModel.switchActiveMedia(it) },
-                                    onEnableAccess = { viewModel.togglePermission("media_controls") },
-                                    onScan = { viewModel.rescanMedia() }
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                        }
-                    }
-
-                    // ==========================================
                     // MIDDLE SECTION:
                     // ABCD Vertical Scroller on closest edge side
                     // Apps Grid with '+' tile at the end
@@ -589,28 +554,6 @@ fun MainEdgePanel(
                         }
                     }
 
-                    AnimatedVisibility(
-                        visible = panelSettings.isBottomQuickSettingsVisible,
-                        enter = expandVertically() + fadeIn(),
-                        exit = shrinkVertically() + fadeOut()
-                    ) {
-                        QuickSettingsRow(
-                            quickSettings = quickSettings,
-                            reorderId = reorder?.takeIf { !it.isGroup }?.id,
-                            onLongPressSetting = { viewModel.startReorder(false, it) },
-                            onToggleSetting = { viewModel.toggleQuickSetting(it) },
-                            onOpenSettings = { viewModel.navigateTo(ActiveWindow.PANEL_SETTINGS) },
-                            onOpenActionsAdd = { viewModel.openAddWindow(forTiles = true) }
-                        )
-                    } 
-                    Spacer(modifier = Modifier.height(6.dp))
-                    ActiveMediaStreams(
-                        streams = mediaState.activeStreams,
-                        mediaAccessOn = panelSettings.mediaControlsEnabled,
-                        onSelect = { viewModel.switchActiveMedia(it) },
-                        onEnableAccess = { viewModel.togglePermission("media_controls") },
-                        onScan = { viewModel.rescanMedia() }
-                    )
                 }
 
                 // Interactive Corner Resize Handle for Main Panel (Adjust size with finger/mouse!)

@@ -113,6 +113,17 @@ fun OneHandApp(
             )
             .testTag("one_hand_app_root")
     ) {
+        val oneHandInnerModifier = if (panelSettings.oneHandModeEnabled) {
+            Modifier
+                .align(if (panelSettings.oneHandCornerRight) Alignment.BottomEnd else Alignment.BottomStart)
+                .fillMaxWidth(oneHandScale)
+                .fillMaxHeight(oneHandScale)
+                .border(1.dp, Color(0xFF1E4E59), RoundedCornerShape(14.dp))
+                .clip(RoundedCornerShape(14.dp))
+        } else {
+            Modifier.fillMaxSize()
+        }
+        Box(modifier = oneHandInnerModifier) {
         // Simulated system home screen canvas underneath
         if (overlayMode) {
             // Tap outside the windows closes the panel and shows the app underneath again
@@ -238,6 +249,7 @@ fun OneHandApp(
                     )
                 }
             }
+        }
         }
     }
 }

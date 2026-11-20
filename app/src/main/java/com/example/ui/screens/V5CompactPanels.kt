@@ -3,116 +3,156 @@ package com.example.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.ActiveWindow
-import com.example.model.MediaStreamItem
-import com.example.model.QuickSettingItem
 import com.example.viewmodel.OneHandViewModel
+import kotlin.math.roundToInt
 
+/**
+ * 1. QUICK PANEL (Swipe Right from Edge Panel):
+ *    Brightness -> Volume -> Quick Settings (same Edge UI) -> Media Seeker -> 5 Media Buttons -> Active Media
+ */
 @Composable
 fun QuickPanelScreen(viewModel: OneHandViewModel, modifier: Modifier = Modifier) {
     val quickSettings by viewModel.quickSettings.collectAsState()
     val media by viewModel.mediaState.collectAsState()
+    val panelSettings by viewModel.panelSettings.collectAsState()
+    var offX by remember { mutableFloatStateOf(0f) }
+    var offY by remember { mutableFloatStateOf(0f) }
 
     Column(
         modifier = modifier
+            .offset { IntOffset(offX.roundToInt(), offY.roundToInt()) }
             .fillMaxWidth()
             .background(Color(0xFF0A1418), RoundedCornerShape(12.dp))
             .border(0.5.dp, Color(0xFF1E4E59), RoundedCornerShape(12.dp))
             .padding(6.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        V5SlimHeader("QUICK PANEL", onBack = { viewModel.navigateTo(ActiveWindow.MAIN_PANEL) }) {
-            viewModel.togglePanel(false)
-        }
-
-        V5QuickTilesGrid(
-            items = quickSettings.filter { it.isVisible },
-            onToggle = { viewModel.toggleQuickSetting(it) },
-            onAdd = { viewModel.navigateTo(ActiveWindow.ADD_QUICK_ACCESS) }
+        V5DraggableHeader(
+            title = "QUICK PANEL",
+            onDrag = { dx, dy -> offX += dx; offY += dy },
+            onBack = { viewModel.navigateTo(ActiveWindow.MAIN_PANEL) },
+            onClose = { viewModel.togglePanel(false) }
         )
 
-        V5SlimSlider("Bright", media.brightnessPercent, 0f..100f) { viewModel.setBrightness(it) }
-        V5SlimSlider("Volume", media.volumePercent, 0f..100f) { viewModel.setVolume(it) }
-        V5SlimSlider(
+        V5EdgeSlider("Bright", media.brightnessPercent, 0f..100f) { viewModel.setBrightness(it) }
+        V5EdgeSlider("Volume", media.volumePercent, 0f..100f) { viewModel.setVolume(it) }
+
+        QuickSettingsRow(
+            quickSettings = quickSettings,
+            onToggleSetting = { viewModel.toggleQuickSetting(it) },
+            onOpenSettings = { viewModel.navigateTo(ActiveWindow.PANEL_SETTINGS) },
+            onOpenActionsAdd = { viewModel.openAddWindow(forTiles = true) }
+        )
+
+        V5EdgeSlider(
             label = "Seek",
             value = media.currentSeconds.toFloat(),
             range = 0f..media.totalSeconds.coerceAtLeast(1).toFloat()
         ) { viewModel.seekMedia(it.toInt()) }
 
-        V5MediaActionButtons(viewModel, media.isPlaying)
-        V5ActiveMediaCleanList(media.activeStreams) { viewModel.switchActiveMedia(it) }
+        V5Media5Buttons(viewModel, media.isPlaying)
+
+        ActiveMediaStreams(
+            streams = media.activeStreams,
+            mediaAccessOn = panelSettings.mediaControlsEnabled,
+            onSelect = { viewModel.switchActiveMedia(it) },
+            onEnableAccess = { viewModel.togglePermission("media_controls") },
+            onScan = { viewModel.rescanMedia() }
+        )
     }
 }
 
+/**
+ * 2. QUICK TOOLS (Independent Movable Floating Panel):
+ *    Brightness -> Volume -> Quick Settings (same Edge UI)
+ */
 @Composable
 fun QuickToolsScreen(viewModel: OneHandViewModel, modifier: Modifier = Modifier) {
     val quickSettings by viewModel.quickSettings.collectAsState()
+    val media by viewModel.mediaState.collectAsState()
+    var offX by remember { mutableFloatStateOf(0f) }
+    var offY by remember { mutableFloatStateOf(0f) }
 
     Column(
         modifier = modifier
+            .offset { IntOffset(offX.roundToInt(), offY.roundToInt()) }
             .fillMaxWidth()
             .background(Color(0xFF0A1418), RoundedCornerShape(12.dp))
             .border(0.5.dp, Color(0xFF1E4E59), RoundedCornerShape(12.dp))
             .padding(6.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        V5SlimHeader("QUICK TOOLS", onBack = { viewModel.navigateTo(ActiveWindow.MAIN_PANEL) }) {
-            viewModel.togglePanel(false)
-        }
-        V5QuickTilesGrid(
-            items = quickSettings.filter { it.isVisible },
-            onToggle = { viewModel.toggleQuickSetting(it) },
-            onAdd = { viewModel.navigateTo(ActiveWindow.ADD_QUICK_ACCESS) }
+        V5DraggableHeader(
+            title = "QUICK TOOLS",
+            onDrag = { dx, dy -> offX += dx; offY += dy },
+            onBack = { viewModel.navigateTo(ActiveWindow.MAIN_PANEL) },
+            onClose = { viewModel.togglePanel(false) }
+        )
+
+        V5EdgeSlider("Bright", media.brightnessPercent, 0f..100f) { viewModel.setBrightness(it) }
+        V5EdgeSlider("Volume", media.volumePercent, 0f..100f) { viewModel.setVolume(it) }
+
+        QuickSettingsRow(
+            quickSettings = quickSettings,
+            onToggleSetting = { viewModel.toggleQuickSetting(it) },
+            onOpenSettings = { viewModel.navigateTo(ActiveWindow.PANEL_SETTINGS) },
+            onOpenActionsAdd = { viewModel.openAddWindow(forTiles = true) }
         )
     }
 }
 
+/**
+ * 3. MEDIA CONTROL (Independent Movable Floating Panel):
+ *    Media Seeker -> 5 Buttons -> Speed (1x, 1.5x, 2x, 2.5x, 3x) -> Active Media (same Edge UI)
+ */
 @Composable
 fun MediaControlScreen(viewModel: OneHandViewModel, modifier: Modifier = Modifier) {
     val media by viewModel.mediaState.collectAsState()
+    val panelSettings by viewModel.panelSettings.collectAsState()
+    var offX by remember { mutableFloatStateOf(0f) }
+    var offY by remember { mutableFloatStateOf(0f) }
 
     Column(
         modifier = modifier
+            .offset { IntOffset(offX.roundToInt(), offY.roundToInt()) }
             .fillMaxWidth()
             .background(Color(0xFF0A1418), RoundedCornerShape(12.dp))
             .border(0.5.dp, Color(0xFF1E4E59), RoundedCornerShape(12.dp))
             .padding(6.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        V5SlimHeader("MEDIA CONTROL", onBack = { viewModel.navigateTo(ActiveWindow.MAIN_PANEL) }) {
-            viewModel.togglePanel(false)
-        }
+        V5DraggableHeader(
+            title = "MEDIA CONTROL",
+            onDrag = { dx, dy -> offX += dx; offY += dy },
+            onBack = { viewModel.navigateTo(ActiveWindow.MAIN_PANEL) },
+            onClose = { viewModel.togglePanel(false) }
+        )
 
-        V5SlimSlider(
+        V5EdgeSlider(
             label = "Seek",
             value = media.currentSeconds.toFloat(),
             range = 0f..media.totalSeconds.coerceAtLeast(1).toFloat()
         ) { viewModel.seekMedia(it.toInt()) }
 
-        V5MediaActionButtons(viewModel, media.isPlaying)
+        V5Media5Buttons(viewModel, media.isPlaying)
 
-        // Speed row: 1x, 1.5x, 2x, 2.5x, 3x
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -138,18 +178,35 @@ fun MediaControlScreen(viewModel: OneHandViewModel, modifier: Modifier = Modifie
             }
         }
 
-        V5ActiveMediaCleanList(media.activeStreams) { viewModel.switchActiveMedia(it) }
+        ActiveMediaStreams(
+            streams = media.activeStreams,
+            mediaAccessOn = panelSettings.mediaControlsEnabled,
+            onSelect = { viewModel.switchActiveMedia(it) },
+            onEnableAccess = { viewModel.togglePermission("media_controls") },
+            onScan = { viewModel.rescanMedia() }
+        )
     }
 }
 
 @Composable
-private fun V5SlimHeader(title: String, onBack: () -> Unit, onClose: () -> Unit) {
+private fun V5DraggableHeader(
+    title: String,
+    onDrag: (Float, Float) -> Unit,
+    onBack: () -> Unit,
+    onClose: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(24.dp)
             .clip(RoundedCornerShape(6.dp))
             .background(Color(0xFF12232A))
+            .pointerInput(Unit) {
+                detectDragGestures { change, dragAmount ->
+                    change.consume()
+                    onDrag(dragAmount.x, dragAmount.y)
+                }
+            }
             .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -166,66 +223,13 @@ private fun V5SlimHeader(title: String, onBack: () -> Unit, onClose: () -> Unit)
             color = Color(0xFF80DEEA),
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier
-                .padding(end = 6.dp)
-                .clickable(onClick = onClose)
+            modifier = Modifier.padding(end = 6.dp).clickable(onClick = onClose)
         )
     }
 }
 
 @Composable
-private fun V5QuickTilesGrid(
-    items: List<QuickSettingItem>,
-    onToggle: (String) -> Unit,
-    onAdd: () -> Unit
-) {
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(4),
-        modifier = Modifier.fillMaxWidth().heightIn(max = 120.dp),
-        verticalArrangement = Arrangement.spacedBy(3.dp),
-        horizontalArrangement = Arrangement.spacedBy(3.dp)
-    ) {
-        items(items) { item ->
-            Box(
-                modifier = Modifier
-                    .height(30.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(if (item.isEnabled) Color(0xFF00BCD4).copy(alpha = 0.25f) else Color(0xFF10252C))
-                    .border(
-                        0.5.dp,
-                        if (item.isEnabled) Color(0xFF00E5FF) else Color(0xFF1E4E59),
-                        RoundedCornerShape(6.dp)
-                    )
-                    .clickable { onToggle(item.id) }
-                    .padding(horizontal = 3.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = item.name.take(8),
-                    color = Color(0xFFE0F7FA),
-                    fontSize = 9.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-        item {
-            Box(
-                modifier = Modifier
-                    .height(30.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Color(0xFF122B33))
-                    .clickable(onClick = onAdd),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("+", color = Color(0xFF00E5FF), fontSize = 13.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-    }
-}
-
-@Composable
-private fun V5SlimSlider(label: String, value: Float, range: ClosedFloatingPointRange<Float>, onChange: (Float) -> Unit) {
+private fun V5EdgeSlider(label: String, value: Float, range: ClosedFloatingPointRange<Float>, onChange: (Float) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().height(22.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -246,7 +250,7 @@ private fun V5SlimSlider(label: String, value: Float, range: ClosedFloatingPoint
 }
 
 @Composable
-private fun V5MediaActionButtons(viewModel: OneHandViewModel, isPlaying: Boolean) {
+private fun V5Media5Buttons(viewModel: OneHandViewModel, isPlaying: Boolean) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -269,36 +273,6 @@ private fun V5MediaActionButtons(viewModel: OneHandViewModel, isPlaying: Boolean
                 contentAlignment = Alignment.Center
             ) {
                 Text(label, color = Color(0xFFE0F7FA), fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
-            }
-        }
-    }
-}
-
-@Composable
-private fun V5ActiveMediaCleanList(streams: List<MediaStreamItem>, onSelect: (String) -> Unit) {
-    // No header text, no per-item Scan or Play/Pause icons
-    LazyColumn(
-        modifier = Modifier.fillMaxWidth().heightIn(max = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-        items(streams) { s ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(26.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(if (s.isActive) Color(0xFF00BCD4).copy(alpha = 0.22f) else Color(0xFF10252C))
-                    .clickable { onSelect(s.id) }
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "${s.appName} · ${s.trackTitle}",
-                    color = Color(0xFFE0F7FA),
-                    fontSize = 10.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
             }
         }
     }
