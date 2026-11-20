@@ -756,6 +756,27 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         showToast(if (_panelSettings.value.isTopMediaSectionVisible) "Top Media & Sliders Unhidden" else "Top Media & Sliders Hidden")
     }
 
+    fun setTopMediaSectionEnabled(enabled: Boolean) {
+        _panelSettings.update { it.copy(isTopMediaSectionVisible = enabled) }
+    }
+
+    fun setAppLauncherEnabled(enabled: Boolean) {
+        _panelSettings.update { it.copy(isAppLauncherEnabled = enabled) }
+    }
+
+    fun setAlphabetScrollerEnabled(enabled: Boolean) {
+        _panelSettings.update { it.copy(isAlphabetScrollerEnabled = enabled) }
+        if (!enabled) _selectedAlphabetLetter.value = null
+    }
+
+    fun setCustomGroupsEnabled(enabled: Boolean) {
+        _panelSettings.update { it.copy(isCustomGroupsEnabled = enabled) }
+    }
+
+    fun setActiveMediaEnabled(enabled: Boolean) {
+        _panelSettings.update { it.copy(isActiveMediaEnabled = enabled) }
+    }
+
     fun setEdgeSide(isRight: Boolean) {
         _panelSettings.update { it.copy(isRightEdge = isRight) }
         showToast("Edge set to ${if (isRight) "Right Edge" else "Left Edge"}")
@@ -764,6 +785,10 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
     fun toggleBottomQuickSettings() {
         _panelSettings.update { it.copy(isBottomQuickSettingsVisible = !it.isBottomQuickSettingsVisible) }
         showToast(if (_panelSettings.value.isBottomQuickSettingsVisible) "Bottom Quick Settings Shown" else "Bottom Quick Settings Hidden")
+    }
+
+    fun setQuickSettingsEnabled(enabled: Boolean) {
+        _panelSettings.update { it.copy(isBottomQuickSettingsVisible = enabled) }
     }
 
     fun updateBackdropOpacity(percent: Int) {

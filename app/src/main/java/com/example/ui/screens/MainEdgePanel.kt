@@ -158,9 +158,9 @@ fun MainEdgePanel(
     }
 
     // Apps of the selected group (before the A-Z letter filter)
-    val groupItems = remember(masterItems, selectedCategory, groupAdded, groupRemoved, manualGroups) {
+    val groupItems = remember(masterItems, selectedCategory, groupAdded, groupRemoved, manualGroups, panelSettings.isCustomGroupsEnabled) {
         val apps = masterItems.filter { it.type == ItemType.APP }
-        when (selectedCategory) {
+        if (!panelSettings.isCustomGroupsEnabled) apps else when (selectedCategory) {
             "Recent" -> apps.filter { it.lastUsed > 0L }.sortedByDescending { it.lastUsed }.take(12)
                 .ifEmpty { masterItems.filter { it.isAdded }.take(12) }
             "Most Used" -> apps.filter { it.usageCount > 0 }.sortedByDescending { it.usageCount }.take(30)
@@ -174,8 +174,8 @@ fun MainEdgePanel(
     val availableLetters = remember(groupItems) {
         groupItems.mapNotNull { it.name.firstOrNull()?.uppercaseChar() }.toSet()
     }
-    val categoryFilteredItems = remember(groupItems, selectedLetter) {
-        if (selectedLetter != null) {
+    val categoryFilteredItems = remember(groupItems, selectedLetter, panelSettings.isAlphabetScrollerEnabled) {
+        if (panelSettings.isAlphabetScrollerEnabled && selectedLetter != null) {
             groupItems.filter { it.name.startsWith(selectedLetter!!, ignoreCase = true) }
         } else {
             groupItems
@@ -317,17 +317,19 @@ fun MainEdgePanel(
                         }
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            // Mini Media Play/Pause button in header
-                            IconButton(
-                                onClick = { viewModel.togglePlayPause() },
-                                modifier = Modifier.size(26.dp).testTag("header_mini_play_pause")
-                            ) {
-                                Icon(
-                                    imageVector = if (mediaState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = "Play/Pause",
-                                    tint = Color(0xFF00E5FF),
-                                    modifier = Modifier.size(15.dp)
-                                )
+                            // Mini media control is part of the media feature.
+                            if (panelSettings.isTopMediaSectionVisible) {
+                                IconButton(
+                                    onClick = { viewModel.togglePlayPause() },
+                                    modifier = Modifier.size(26.dp).testTag("header_mini_play_pause")
+                                ) {
+                                    Icon(
+                                        imageVector = if (mediaState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                        contentDescription = "Play/Pause",
+                                        tint = Color(0xFF00E5FF),
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                }
                             }
 
                             // Hide / Unhide Brightness, Volume & Media Sliders
@@ -391,9 +393,10 @@ fun MainEdgePanel(
                                 onPlayPause = { viewModel.togglePlayPause() },
                                 onForward15 = { viewModel.skipForward15() },
                                 onNext = { viewModel.nextVideoOrChapter() },
+                                showActiveMedia = panelSettings.isActiveMediaEnabled,
                                 onExpand = { mediaExpanded = !mediaExpanded }
                             )
-                            if (mediaExpanded) {
+                            if (mediaExpanded && panelSettings.isActiveMediaEnabled) {
                                 Spacer(modifier = Modifier.height(4.dp))
                                 ActiveMediaStreams(
                                     streams = mediaState.activeStreams,
@@ -419,7 +422,7 @@ fun MainEdgePanel(
                             .weight(1f)
                     ) {
                         // If LEFT edge: Vertical ABCD slider is closest to left thumb
-                        if (!panelSettings.isRightEdge) {
+                        if (panelSettings.isAppLauncherEnabled && panelSettings.isAlphabetScrollerEnabled && !panelSettings.isRightEdge) {
                             FastAlphabetScroller(
                                 availableLetters = availableLetters,
                                 selectedLetter = selectedLetter,
@@ -441,7 +444,16 @@ fun MainEdgePanel(
                                     .fillMaxWidth()
                                     .weight(1f)
                             ) {
-                                if (categoryFilteredItems.isEmpty()) {
+                                if (!panelSettings.isAppLauncherEnabled) {
+                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = "App launcher is off. Turn it on in Panel Settings → Feature Controls.",
+                                            color = Color(0xFF80DEEA),
+                                            fontSize = 11.sp,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                } else if (categoryFilteredItems.isEmpty()) {
                                     Box(
                                         modifier = Modifier.fillMaxSize(),
                                         contentAlignment = Alignment.Center
@@ -483,6 +495,7 @@ fun MainEdgePanel(
                             Spacer(modifier = Modifier.height(4.dp))
 
                             // LINE 2: GROUPS Selector Row (with functioning + button for new custom group!)
+                            if (panelSettings.isCustomGroupsEnabled && panelSettings.isAppLauncherEnabled) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -534,10 +547,11 @@ fun MainEdgePanel(
                                     )
                                 }
                             }
+                            }
                         }
 
                         // If RIGHT edge: Vertical ABCD slider is closest to right thumb!
-                        if (panelSettings.isRightEdge) {
+                        if (panelSettings.isAppLauncherEnabled && panelSettings.isAlphabetScrollerEnabled && panelSettings.isRightEdge) {
                             FastAlphabetScroller(
                                 availableLetters = availableLetters,
                                 selectedLetter = selectedLetter,
@@ -604,13 +618,15 @@ fun MainEdgePanel(
                         )
                     } 
                     Spacer(modifier = Modifier.height(6.dp))
-                    ActiveMediaStreams(
-                        streams = mediaState.activeStreams,
-                        mediaAccessOn = panelSettings.mediaControlsEnabled,
-                        onSelect = { viewModel.switchActiveMedia(it) },
-                        onEnableAccess = { viewModel.togglePermission("media_controls") },
-                        onScan = { viewModel.rescanMedia() }
-                    )
+                    if (panelSettings.isActiveMediaEnabled) {
+                        ActiveMediaStreams(
+                            streams = mediaState.activeStreams,
+                            mediaAccessOn = panelSettings.mediaControlsEnabled,
+                            onSelect = { viewModel.switchActiveMedia(it) },
+                            onEnableAccess = { viewModel.togglePermission("media_controls") },
+                            onScan = { viewModel.rescanMedia() }
+                        )
+                    }
                 }
 
                 // Interactive Corner Resize Handle for Main Panel (Adjust size with finger/mouse!)
@@ -812,6 +828,7 @@ fun CompactMediaAndSliders(
     onPlayPause: () -> Unit,
     onForward15: () -> Unit,
     onNext: () -> Unit,
+    showActiveMedia: Boolean,
     onExpand: () -> Unit
 ) {
     Card(
@@ -976,9 +993,11 @@ fun CompactMediaAndSliders(
                 IconButton(onClick = onNext, modifier = Modifier.size(28.dp)) {
                     Icon(imageVector = Icons.Default.SkipNext, contentDescription = "Next", tint = Color(0xFF80DEEA), modifier = Modifier.size(18.dp))
                 }
-                // 6: Expand sign
-                IconButton(onClick = onExpand, modifier = Modifier.size(28.dp)) {
-                    Icon(imageVector = Icons.Default.OpenInFull, contentDescription = "Expand", tint = Color(0xFF00E5FF), modifier = Modifier.size(16.dp))
+                // Expand to the active media player list only when that feature is enabled.
+                if (showActiveMedia) {
+                    IconButton(onClick = onExpand, modifier = Modifier.size(28.dp)) {
+                        Icon(imageVector = Icons.Default.OpenInFull, contentDescription = "Expand", tint = Color(0xFF00E5FF), modifier = Modifier.size(16.dp))
+                    }
                 }
             }
         }

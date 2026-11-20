@@ -212,48 +212,7 @@ fun PanelSettingsWindow(
 
                             Spacer(modifier = Modifier.height(10.dp))
 
-                            // Edge Placement Segmented Selector with Master ON/OFF Switch
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Panel Screen Edge Placement",
-                                        color = Color(0xFFE0F7FA),
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = if (panelSettings.isEdgeHandleEnabled) "Edge handle is ACTIVE" else "Edge handle is OFF",
-                                        color = if (panelSettings.isEdgeHandleEnabled) Color(0xFF00E5FF) else Color(0xFFFF8A80),
-                                        fontSize = 10.sp
-                                    )
-                                }
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = if (panelSettings.isEdgeHandleEnabled) "ON" else "OFF",
-                                        color = if (panelSettings.isEdgeHandleEnabled) Color(0xFF00E5FF) else Color(0xFF80DEEA).copy(alpha = 0.6f),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Switch(
-                                        checked = panelSettings.isEdgeHandleEnabled,
-                                        onCheckedChange = { viewModel.setEdgeHandleEnabled(it) },
-                                        colors = SwitchDefaults.colors(
-                                            checkedThumbColor = Color(0xFF00E5FF),
-                                            checkedTrackColor = Color(0xFF005662),
-                                            uncheckedThumbColor = Color(0xFF80DEEA),
-                                            uncheckedTrackColor = Color(0xFF1B4048)
-                                        ),
-                                        modifier = Modifier.testTag("switch_edge_handle_master")
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-
+                            // Edge placement remains configurable even when its feature is off.
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -302,6 +261,82 @@ fun PanelSettingsWindow(
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "FEATURE CONTROLS",
+                        color = Color(0xFF00E5FF),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                    Text(
+                        text = "These switches affect this phone only. No feature-use data is sent.",
+                        color = Color(0xFF80DEEA).copy(alpha = 0.78f),
+                        fontSize = 10.sp,
+                        lineHeight = 14.sp,
+                        modifier = Modifier.padding(top = 3.dp, bottom = 8.dp)
+                    )
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0B242A)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF16444E))
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            FeatureToggleTile(
+                                title = "App launcher",
+                                description = "Show or hide the apps grid and launcher.",
+                                isEnabled = panelSettings.isAppLauncherEnabled,
+                                testTag = "switch_feature_app_launcher",
+                                onToggle = viewModel::setAppLauncherEnabled
+                            )
+                            FeatureToggleTile(
+                                title = "A–Z fast scroll",
+                                description = "Show the alphabet index beside the app list.",
+                                isEnabled = panelSettings.isAlphabetScrollerEnabled,
+                                testTag = "switch_feature_alphabet_scroller",
+                                onToggle = viewModel::setAlphabetScrollerEnabled
+                            )
+                            FeatureToggleTile(
+                                title = "App groups",
+                                description = "Show group tabs and custom-group controls.",
+                                isEnabled = panelSettings.isCustomGroupsEnabled,
+                                testTag = "switch_feature_custom_groups",
+                                onToggle = viewModel::setCustomGroupsEnabled
+                            )
+                            FeatureToggleTile(
+                                title = "Media controls & sliders",
+                                description = "Show brightness, volume, and playback controls.",
+                                isEnabled = panelSettings.isTopMediaSectionVisible,
+                                testTag = "switch_feature_media_controls",
+                                onToggle = viewModel::setTopMediaSectionEnabled
+                            )
+                            FeatureToggleTile(
+                                title = "Active media sessions",
+                                description = "Show the list of active media players.",
+                                isEnabled = panelSettings.isActiveMediaEnabled,
+                                testTag = "switch_feature_active_media",
+                                onToggle = viewModel::setActiveMediaEnabled
+                            )
+                            FeatureToggleTile(
+                                title = "Quick settings & actions",
+                                description = "Show the quick settings and hardware-action tiles.",
+                                isEnabled = panelSettings.isBottomQuickSettingsVisible,
+                                testTag = "switch_feature_quick_settings",
+                                onToggle = viewModel::setQuickSettingsEnabled
+                            )
+                            FeatureToggleTile(
+                                title = "Edge trigger handle",
+                                description = "Show or hide the handle used to open the panel.",
+                                isEnabled = panelSettings.isEdgeHandleEnabled,
+                                testTag = "switch_feature_edge_handle",
+                                onToggle = viewModel::setEdgeHandleEnabled
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
 
                     // ==========================================
                     // PERMISSIONS SECTION (Compact & Clean)
@@ -673,3 +708,47 @@ fun PermissionTile(
     }
 }
 
+@Composable
+fun FeatureToggleTile(
+    title: String,
+    description: String,
+    isEnabled: Boolean,
+    testTag: String,
+    onToggle: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0xFF0F2E36))
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+            Text(
+                text = title,
+                color = Color(0xFFE0F7FA),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = description,
+                color = Color(0xFF80DEEA).copy(alpha = 0.78f),
+                fontSize = 9.sp,
+                lineHeight = 13.sp
+            )
+        }
+        Switch(
+            checked = isEnabled,
+            onCheckedChange = onToggle,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color(0xFF00E5FF),
+                checkedTrackColor = Color(0xFF005662),
+                uncheckedThumbColor = Color(0xFF80DEEA),
+                uncheckedTrackColor = Color(0xFF1B4048)
+            ),
+            modifier = Modifier.testTag(testTag)
+        )
+    }
+}

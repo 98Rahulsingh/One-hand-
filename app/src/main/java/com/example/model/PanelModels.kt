@@ -112,7 +112,12 @@ data class PanelSettings(
     // Background dim opacity (0% = completely transparent, 100% = pitch black)
     val backdropOpacityPercent: Int = 45,
     // Edge handle master ON / OFF switch
-    val isEdgeHandleEnabled: Boolean = true
+    val isEdgeHandleEnabled: Boolean = true,
+    // Per-user feature switches for the main panel
+    val isAppLauncherEnabled: Boolean = true,
+    val isAlphabetScrollerEnabled: Boolean = true,
+    val isCustomGroupsEnabled: Boolean = true,
+    val isActiveMediaEnabled: Boolean = true
 )
 
 enum class ActiveWindow {

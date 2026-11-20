@@ -35,7 +35,11 @@ class SettingsStore(ctx: Context) {
             isTopMediaSectionVisible = p.getBoolean("isTopMediaSectionVisible", d.isTopMediaSectionVisible),
             isBottomQuickSettingsVisible = p.getBoolean("isBottomQuickSettingsVisible", d.isBottomQuickSettingsVisible),
             backdropOpacityPercent = p.getInt("backdropOpacityPercent", d.backdropOpacityPercent),
-            isEdgeHandleEnabled = p.getBoolean("isEdgeHandleEnabled", d.isEdgeHandleEnabled)
+            isEdgeHandleEnabled = p.getBoolean("isEdgeHandleEnabled", d.isEdgeHandleEnabled),
+            isAppLauncherEnabled = p.getBoolean("isAppLauncherEnabled", d.isAppLauncherEnabled),
+            isAlphabetScrollerEnabled = p.getBoolean("isAlphabetScrollerEnabled", d.isAlphabetScrollerEnabled),
+            isCustomGroupsEnabled = p.getBoolean("isCustomGroupsEnabled", d.isCustomGroupsEnabled),
+            isActiveMediaEnabled = p.getBoolean("isActiveMediaEnabled", d.isActiveMediaEnabled)
         )
     }
 
@@ -58,6 +62,10 @@ class SettingsStore(ctx: Context) {
             .putBoolean("isBottomQuickSettingsVisible", s.isBottomQuickSettingsVisible)
             .putInt("backdropOpacityPercent", s.backdropOpacityPercent)
             .putBoolean("isEdgeHandleEnabled", s.isEdgeHandleEnabled)
+            .putBoolean("isAppLauncherEnabled", s.isAppLauncherEnabled)
+            .putBoolean("isAlphabetScrollerEnabled", s.isAlphabetScrollerEnabled)
+            .putBoolean("isCustomGroupsEnabled", s.isCustomGroupsEnabled)
+            .putBoolean("isActiveMediaEnabled", s.isActiveMediaEnabled)
             .apply()
     }
 }
