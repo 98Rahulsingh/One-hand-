@@ -58,6 +58,7 @@ fun AddQuickAccessModal(
     val groupAdded by viewModel.groupAdded.collectAsState()
     val groupRemoved by viewModel.groupRemoved.collectAsState()
     val quickSettings by viewModel.quickSettings.collectAsState()
+    val tileTargets by viewModel.tileTargets.collectAsState()
 
     var activeTab by remember { mutableIntStateOf(0) } // 0=Apps, 1=Action, 2=Groups
     var showGroupList by remember { mutableStateOf(false) }
@@ -86,6 +87,7 @@ fun AddQuickAccessModal(
         onClose = { viewModel.navigateTo(ActiveWindow.MAIN_PANEL) },
         modifier = modifier
     ) {
+        Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -172,6 +174,8 @@ fun AddQuickAccessModal(
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     items(DefaultV5Actions) { actName ->
+                        val actionKey = actName.lowercase().replace(" ", "_").replace("-", "")
+                        val savedTarget = tileTargets[actionKey]
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -179,20 +183,40 @@ fun AddQuickAccessModal(
                                 .clip(RoundedCornerShape(6.dp))
                                 .background(Color(0xFF10252C))
                                 .clickable { viewModel.showToast("Selected: $actName") }
-                                .padding(horizontal = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(horizontal = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .background(Color(0xFF00BCD4).copy(alpha = 0.25f), RoundedCornerShape(4.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("⚡", fontSize = 9.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0xFF00BCD4).copy(alpha = 0.25f))
+                                        .clickable { viewModel.trackTile(actionKey) }
+                                        .padding(horizontal = 5.dp, vertical = 2.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(if (savedTarget != null) "◎" else "Track", color = Color(0xFF00E5FF), fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                }
+                                if (panelSettings.showActionNameInList) {
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        text = if (savedTarget != null && savedTarget.label.isNotBlank()) "${actName} (${savedTarget.label})" else actName,
+                                        color = Color(0xFFE0F7FA),
+                                        fontSize = 10.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
-                            if (panelSettings.showActionNameInList) {
-                                Spacer(Modifier.width(8.dp))
-                                Text(actName, color = Color(0xFFE0F7FA), fontSize = 10.sp)
+                            if (savedTarget != null) {
+                                Text(
+                                    text = "Reset",
+                                    color = Color(0xFFFFD54F),
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.clickable { viewModel.clearTileTarget(actionKey) }.padding(horizontal = 4.dp)
+                                )
                             }
                         }
                     }
@@ -367,16 +391,18 @@ fun AddQuickAccessModal(
             }
         }
 
+        }
         activeLetter?.let { ch ->
             Box(
                 modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
+                    .align(Alignment.Center)
                     .size(34.dp)
                     .background(Color(0xFF00BCD4), RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(ch.toString(), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             }
+        }
         }
     }
 }

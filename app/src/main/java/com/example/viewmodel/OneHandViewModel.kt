@@ -635,7 +635,7 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
             "open_tools" -> { navigateTo(ActiveWindow.QUICK_TOOLS); togglePanel(true); return }
             "open_media" -> { navigateTo(ActiveWindow.MEDIA_CONTROL); togglePanel(true); return }
         }
-        if (settingId in needsCleanScreen) {
+        if (settingId in needsCleanScreen || settingId in _tileTargets.value) {
             // These act on the app underneath, so the panel must get out of the way first
             togglePanel(false)
             viewModelScope.launch {
