@@ -602,7 +602,15 @@ fun MainEdgePanel(
                             onOpenSettings = { viewModel.navigateTo(ActiveWindow.PANEL_SETTINGS) },
                             onOpenActionsAdd = { viewModel.openAddWindow(forTiles = true) }
                         )
-                    }
+                    } 
+                    Spacer(modifier = Modifier.height(6.dp))
+                    ActiveMediaStreams(
+                        streams = mediaState.activeStreams,
+                        mediaAccessOn = panelSettings.mediaControlsEnabled,
+                        onSelect = { viewModel.switchActiveMedia(it) },
+                        onEnableAccess = { viewModel.togglePermission("media_controls") },
+                        onScan = { viewModel.rescanMedia() }
+                    )
                 }
 
                 // Interactive Corner Resize Handle for Main Panel (Adjust size with finger/mouse!)
