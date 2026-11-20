@@ -370,7 +370,7 @@ fun AddQuickAccessModal(
         activeLetter?.let { ch ->
             Box(
                 modifier = Modifier
-                    .align(Alignment.Center)
+                    .align(Alignment.CenterHorizontally)
                     .size(34.dp)
                     .background(Color(0xFF00BCD4), RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center
