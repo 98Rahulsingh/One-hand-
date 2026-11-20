@@ -69,7 +69,7 @@ fun V5FloatingPanel(viewModel: OneHandViewModel, window: ActiveWindow) {
         Card(
             modifier = Modifier
                 .align(if (window == ActiveWindow.ONE_HAND_MODE) if (rightAnchor) Alignment.BottomEnd else Alignment.BottomStart else edgeAlignment)
-                .padding(8.dp)
+                .padding(4.dp)
                 .width(if (window == ActiveWindow.ONE_HAND_MODE) (miniSize * 65).dp else geometry.widthDp.dp.coerceIn(230.dp, 390.dp))
                 .height(if (window == ActiveWindow.ONE_HAND_MODE) (miniSize * 125).dp else geometry.heightDp.dp.coerceIn(300.dp, 760.dp))
                 .offset(x = if (window == ActiveWindow.ONE_HAND_MODE) 0.dp else geometry.xOffset.dp, y = if (window == ActiveWindow.ONE_HAND_MODE) 0.dp else geometry.yOffset.dp)
@@ -90,9 +90,9 @@ fun V5FloatingPanel(viewModel: OneHandViewModel, window: ActiveWindow) {
             colors = CardDefaults.cardColors(containerColor = V5Bg),
             elevation = CardDefaults.cardElevation(16.dp)
         ) {
-            Column(Modifier.fillMaxSize().padding(10.dp)) {
+            Column(Modifier.fillMaxSize().padding(horizontal = 6.dp, vertical = 4.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(title, color = V5Accent, fontSize = 11.sp, letterSpacing = 1.2.sp)
+                    Text(title, color = V5Accent, fontSize = 10.sp, letterSpacing = 0.6.sp)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (window == ActiveWindow.MAIN_PANEL) {
                             IconButton(onClick = { viewModel.togglePlayPause() }, modifier = Modifier.size(28.dp)) {
@@ -110,10 +110,6 @@ fun V5FloatingPanel(viewModel: OneHandViewModel, window: ActiveWindow) {
                 when (window) {
                     ActiveWindow.QUICK_PANEL -> {
                         QuickTilesGrid(quick.filter { it.isVisible }, viewModel, Modifier.weight(1f))
-                        Text("BRIGHTNESS", color = Color.LightGray, fontSize = 9.sp)
-                        Slider(value = media.brightnessPercent.coerceIn(0f, 100f), onValueChange = viewModel::setBrightness, valueRange = 0f..100f)
-                        Text("VOLUME", color = Color.LightGray, fontSize = 9.sp)
-                        Slider(value = media.volumePercent.coerceIn(0f, 100f), onValueChange = viewModel::setVolume, valueRange = 0f..100f)
                         MediaSeek(media.totalSeconds, media.currentSeconds, viewModel)
                         MediaButtons(viewModel, media.isPlaying)
                         ActiveSessions(viewModel, media.activeStreams, Modifier.weight(0.8f))
@@ -131,9 +127,15 @@ fun V5FloatingPanel(viewModel: OneHandViewModel, window: ActiveWindow) {
                         ActiveSessions(viewModel, media.activeStreams, Modifier.weight(1f))
                     }
                     ActiveWindow.QUICK_TOOLS -> {
+                        Column(Modifier.fillMaxWidth().padding(horizontal = 2.dp)) {
+                            Text("Brightness", color = Color.LightGray, fontSize = 9.sp)
+                            Slider(value = media.brightnessPercent.coerceIn(0f, 100f), onValueChange = viewModel::setBrightness, valueRange = 0f..100f, modifier = Modifier.height(22.dp))
+                            Text("Volume", color = Color.LightGray, fontSize = 9.sp)
+                            Slider(value = media.volumePercent.coerceIn(0f, 100f), onValueChange = viewModel::setVolume, valueRange = 0f..100f, modifier = Modifier.height(22.dp))
+                        }
                         LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
                             items(quick.filter { it.isVisible }, key = { it.id }) { item ->
-                                Row(Modifier.fillMaxWidth().padding(vertical = 3.dp).background(if (item.isEnabled) Color(0xFF16454D) else V5Tile, RoundedCornerShape(12.dp)).clickable { viewModel.toggleQuickSetting(item.id) }.padding(horizontal = 12.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Row(Modifier.fillMaxWidth().padding(vertical = 3.dp).background(if (item.isEnabled) Color(0xFF16454D) else V5Tile, RoundedCornerShape(8.dp)).clickable { viewModel.toggleQuickSetting(item.id) }.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Text(item.iconName.take(2).uppercase(), color = V5Accent, fontSize = 12.sp, modifier = Modifier.width(34.dp))
                                     Text(item.name, color = Color.White, fontSize = 12.sp, modifier = Modifier.weight(1f))
                                     Text(if (item.isEnabled) "ON" else "OFF", color = if (item.isEnabled) V5Accent else Color.LightGray, fontSize = 9.sp)
@@ -155,7 +157,7 @@ fun V5FloatingPanel(viewModel: OneHandViewModel, window: ActiveWindow) {
                             TextButton(onClick = { rightAnchor = false }) { Text("LEFT", color = if (!rightAnchor) V5Accent else Color.White) }
                             TextButton(onClick = { rightAnchor = true }) { Text("RIGHT", color = if (rightAnchor) V5Accent else Color.White) }
                         }
-                        LazyVerticalGrid(columns = GridCells.Fixed(3), modifier = Modifier.weight(1f), contentPadding = PaddingValues(2.dp)) {
+                        LazyVerticalGrid(columns = GridCells.Fixed(4), modifier = Modifier.weight(1f), contentPadding = PaddingValues(2.dp)) {
                             items(apps.filter { it.type == ItemType.APP && it.isAdded }.take(18), key = { it.id }) { app ->
                                 Card(Modifier.padding(3.dp).clickable { viewModel.launchApp(app) }, colors = CardDefaults.cardColors(containerColor = V5Tile)) {
                                     Box(Modifier.fillMaxWidth().height(54.dp).padding(4.dp), contentAlignment = Alignment.Center) { Text(app.name, color = Color.White, fontSize = 9.sp, maxLines = 2) }
@@ -175,12 +177,12 @@ fun V5FloatingPanel(viewModel: OneHandViewModel, window: ActiveWindow) {
 
 @Composable
 private fun QuickTilesGrid(items: List<com.example.model.QuickSettingItem>, viewModel: OneHandViewModel, modifier: Modifier = Modifier) {
-    LazyVerticalGrid(columns = GridCells.Fixed(3), modifier = modifier.fillMaxWidth(), contentPadding = PaddingValues(2.dp)) {
+    LazyVerticalGrid(columns = GridCells.Fixed(4), modifier = modifier.fillMaxWidth(), contentPadding = PaddingValues(2.dp)) {
         items(items, key = { it.id }) { item ->
             Card(Modifier.padding(3.dp).clickable { viewModel.toggleQuickSetting(item.id) }, colors = CardDefaults.cardColors(containerColor = if (item.isEnabled) Color(0xFF16454D) else V5Tile)) {
-                Column(Modifier.fillMaxWidth().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.fillMaxWidth().padding(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(item.iconName.take(2).uppercase(), color = V5Accent, fontSize = 12.sp)
-                    Text(item.name, color = Color.White, fontSize = 9.sp, maxLines = 1)
+                    Text(item.name, color = Color.White, fontSize = 8.sp, maxLines = 1)
                 }
             }
         }
