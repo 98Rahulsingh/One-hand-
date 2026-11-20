@@ -148,7 +148,7 @@ fun V5FloatingPanel(viewModel: OneHandViewModel, window: ActiveWindow) {
                         Text("Mini screen size", color = Color.White, fontSize = 11.sp)
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                             listOf(3.5f, 4f, 4.5f).forEach { size ->
-                                TextButton(onClick = { miniSize = size }) { Text("${size}"", color = if (miniSize == size) V5Accent else Color.White, fontSize = 10.sp) }
+                                TextButton(onClick = { miniSize = size }) { Text("${size}\"", color = if (miniSize == size) V5Accent else Color.White, fontSize = 10.sp) }
                             }
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
