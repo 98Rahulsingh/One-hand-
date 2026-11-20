@@ -449,7 +449,8 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun setPlaybackSpeed(speed: Float) {
-        showToast("Speed can only be changed inside the player app")
+        _mediaState.update { it.copy(playbackSpeed = speed) }
+        showToast("Speed: ${speed}x")
     }
 
     fun toggleRepeat() {
@@ -616,7 +617,24 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
     // Quick Settings - Direct hardware toggle in-place (no redirection!)
     private val needsCleanScreen = setOf("split", "prev_app", "lock", "screenshot", "home", "back", "notifications", "power")
 
+    fun swipePanel(toRight: Boolean) {
+        if (toRight) {
+            // Swipe Right -> One Hand Mode
+            updateSettings { it.copy(oneHandModeEnabled = true) }
+            navigateTo(ActiveWindow.MAIN_PANEL)
+        } else {
+            // Swipe Left -> Quick Panel
+            navigateTo(ActiveWindow.QUICK_PANEL)
+        }
+    }
+
     fun toggleQuickSetting(settingId: String) {
+        when (settingId) {
+            "open_edge" -> { navigateTo(ActiveWindow.MAIN_PANEL); togglePanel(true); return }
+            "open_quick" -> { navigateTo(ActiveWindow.QUICK_PANEL); togglePanel(true); return }
+            "open_tools" -> { navigateTo(ActiveWindow.QUICK_TOOLS); togglePanel(true); return }
+            "open_media" -> { navigateTo(ActiveWindow.MEDIA_CONTROL); togglePanel(true); return }
+        }
         if (settingId in needsCleanScreen) {
             // These act on the app underneath, so the panel must get out of the way first
             togglePanel(false)
@@ -823,7 +841,9 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
     private fun actionIdFor(itemId: String): String? = mapOf(
         "act_wifi" to "wifi", "act_bt" to "bluetooth", "act_data" to "data", "act_hotspot" to "hotspot",
         "act_screenshot" to "screenshot", "act_lock" to "lock", "act_split" to "split",
-        "act_floating" to "floating", "act_torch" to "torch", "act_mute" to "mute"
+        "act_floating" to "floating", "act_torch" to "torch", "act_mute" to "mute",
+        "act_open_edge" to "open_edge", "act_open_quick" to "open_quick",
+        "act_open_tools" to "open_tools", "act_open_media" to "open_media"
     )[itemId]
 
     fun launchApp(app: AppItem) {
@@ -886,6 +906,10 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
             AppItem("sc_navigate", "Navigate Home", "com.google.android.apps.maps.home", ItemType.SHORTCUT, "Tools", "home", 0xFF4CAF50, true, "1-tap GPS route"),
 
             // Actions
+            AppItem("act_open_edge", "Open Edge Panel", "", ItemType.ACTION, "Tools", "apps", 0xFF00E5FF, true, "Switch to Edge Panel"),
+            AppItem("act_open_quick", "Open Quick Panel", "", ItemType.ACTION, "Tools", "tune", 0xFF00BCD4, true, "Switch to Quick Panel"),
+            AppItem("act_open_tools", "Open Quick Tools", "", ItemType.ACTION, "Tools", "build", 0xFF26C6DA, true, "Independent Quick Tools"),
+            AppItem("act_open_media", "Open Media Control", "", ItemType.ACTION, "Tools", "music_note", 0xFF4DD0E1, true, "Independent Media Control"),
             AppItem("act_wifi", "Wi-Fi Toggle", "", ItemType.ACTION, "Tools", "wifi", 0xFF00E5FF, true, "Quick wireless control"),
             AppItem("act_bt", "Bluetooth Toggle", "", ItemType.ACTION, "Tools", "bluetooth", 0xFF2196F3, true, "Pair & connect devices"),
             AppItem("act_data", "Mobile Data", "", ItemType.ACTION, "Tools", "cell_tower", 0xFF00BCD4, true, "Cellular connection"),

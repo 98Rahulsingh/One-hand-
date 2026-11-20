@@ -53,6 +53,9 @@ import com.example.ui.components.EdgeTriggerHandle
 import com.example.ui.screens.AddQuickAccessModal
 import com.example.ui.screens.MainEdgePanel
 import com.example.ui.screens.PanelSettingsWindow
+import com.example.ui.screens.QuickPanelScreen
+import com.example.ui.screens.QuickToolsScreen
+import com.example.ui.screens.MediaControlScreen
 import com.example.viewmodel.OneHandViewModel
 
 @Composable
@@ -162,6 +165,33 @@ fun OneHandApp(
             ) + fadeOut()
         ) {
             MainEdgePanel(viewModel = viewModel)
+        }
+
+        AnimatedVisibility(
+            visible = (activeWindow == ActiveWindow.QUICK_PANEL && isPanelOpen),
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(if (panelSettings.isRightEdge) Alignment.CenterEnd else Alignment.CenterStart).padding(6.dp)
+        ) {
+            QuickPanelScreen(viewModel = viewModel, modifier = Modifier.width(panelSettings.panelWidthDp.dp))
+        }
+
+        AnimatedVisibility(
+            visible = (activeWindow == ActiveWindow.QUICK_TOOLS && isPanelOpen),
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.Center).padding(6.dp)
+        ) {
+            QuickToolsScreen(viewModel = viewModel, modifier = Modifier.width(panelSettings.quickToolWidthDp.dp))
+        }
+
+        AnimatedVisibility(
+            visible = (activeWindow == ActiveWindow.MEDIA_CONTROL && isPanelOpen),
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.Center).padding(6.dp)
+        ) {
+            MediaControlScreen(viewModel = viewModel, modifier = Modifier.width(panelSettings.mediaControlWidthDp.dp))
         }
 
         // Window 2: Add Quick Access Modal (Matching Image 1)
