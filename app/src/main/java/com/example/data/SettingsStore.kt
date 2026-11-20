@@ -36,9 +36,11 @@ class SettingsStore(ctx: Context) {
             isBottomQuickSettingsVisible = p.getBoolean("isBottomQuickSettingsVisible", d.isBottomQuickSettingsVisible),
             backdropOpacityPercent = p.getInt("backdropOpacityPercent", d.backdropOpacityPercent),
             isEdgeHandleEnabled = p.getBoolean("isEdgeHandleEnabled", d.isEdgeHandleEnabled),
+            rightTriggerEnabled = p.getBoolean("rightTriggerEnabled", d.rightTriggerEnabled),
             rightTriggerVerticalPos = p.getInt("rightTriggerVerticalPos", d.rightTriggerVerticalPos),
             rightTriggerWidthDp = p.getFloat("rightTriggerWidthDp", d.rightTriggerWidthDp),
             rightTriggerLengthDp = p.getFloat("rightTriggerLengthDp", d.rightTriggerLengthDp),
+            leftTriggerEnabled = p.getBoolean("leftTriggerEnabled", d.leftTriggerEnabled),
             leftTriggerVerticalPos = p.getInt("leftTriggerVerticalPos", d.leftTriggerVerticalPos),
             leftTriggerWidthDp = p.getFloat("leftTriggerWidthDp", d.leftTriggerWidthDp),
             leftTriggerLengthDp = p.getFloat("leftTriggerLengthDp", d.leftTriggerLengthDp),
@@ -85,9 +87,11 @@ class SettingsStore(ctx: Context) {
             .putBoolean("isBottomQuickSettingsVisible", s.isBottomQuickSettingsVisible)
             .putInt("backdropOpacityPercent", s.backdropOpacityPercent)
             .putBoolean("isEdgeHandleEnabled", s.isEdgeHandleEnabled)
+            .putBoolean("rightTriggerEnabled", s.rightTriggerEnabled)
             .putInt("rightTriggerVerticalPos", s.rightTriggerVerticalPos)
             .putFloat("rightTriggerWidthDp", s.rightTriggerWidthDp)
             .putFloat("rightTriggerLengthDp", s.rightTriggerLengthDp)
+            .putBoolean("leftTriggerEnabled", s.leftTriggerEnabled)
             .putInt("leftTriggerVerticalPos", s.leftTriggerVerticalPos)
             .putFloat("leftTriggerWidthDp", s.leftTriggerWidthDp)
             .putFloat("leftTriggerLengthDp", s.leftTriggerLengthDp)

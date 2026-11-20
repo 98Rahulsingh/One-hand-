@@ -19,6 +19,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.graphics.Rect
+import androidx.compose.ui.platform.LocalContext
+import com.example.data.FloatingStore
 import com.example.model.ActiveWindow
 import com.example.viewmodel.OneHandViewModel
 import kotlin.math.roundToInt
@@ -32,8 +35,11 @@ fun QuickPanelScreen(viewModel: OneHandViewModel, modifier: Modifier = Modifier)
     val quickSettings by viewModel.quickSettings.collectAsState()
     val media by viewModel.mediaState.collectAsState()
     val panelSettings by viewModel.panelSettings.collectAsState()
-    var offX by remember { mutableFloatStateOf(0f) }
-    var offY by remember { mutableFloatStateOf(0f) }
+    val ctx = LocalContext.current
+    val store = remember { FloatingStore(ctx) }
+    val savedRect = remember { if (panelSettings.rememberFloatingPosition) store.get("v5_quick_panel") else null }
+    var offX by remember { mutableFloatStateOf(savedRect?.left?.toFloat() ?: 0f) }
+    var offY by remember { mutableFloatStateOf(savedRect?.top?.toFloat() ?: 0f) }
 
     Column(
         modifier = modifier
@@ -48,7 +54,7 @@ fun QuickPanelScreen(viewModel: OneHandViewModel, modifier: Modifier = Modifier)
             title = "QUICK PANEL",
             onDrag = { dx, dy -> offX += dx; offY += dy },
             onBack = { viewModel.navigateTo(ActiveWindow.MAIN_PANEL) },
-            onClose = { viewModel.togglePanel(false) }
+            onClose = { if (panelSettings.rememberFloatingPosition) store.put("v5_quick_panel", Rect(offX.toInt(), offY.toInt(), 0, 0)); viewModel.togglePanel(false) }
         )
 
         V5EdgeSlider("Bright", media.brightnessPercent, 0f..100f) { viewModel.setBrightness(it) }
@@ -87,8 +93,12 @@ fun QuickPanelScreen(viewModel: OneHandViewModel, modifier: Modifier = Modifier)
 fun QuickToolsScreen(viewModel: OneHandViewModel, modifier: Modifier = Modifier) {
     val quickSettings by viewModel.quickSettings.collectAsState()
     val media by viewModel.mediaState.collectAsState()
-    var offX by remember { mutableFloatStateOf(0f) }
-    var offY by remember { mutableFloatStateOf(0f) }
+    val panelSettings by viewModel.panelSettings.collectAsState()
+    val ctx = LocalContext.current
+    val store = remember { FloatingStore(ctx) }
+    val savedRect = remember { if (panelSettings.rememberFloatingPosition) store.get("v5_quick_tools") else null }
+    var offX by remember { mutableFloatStateOf(savedRect?.left?.toFloat() ?: 0f) }
+    var offY by remember { mutableFloatStateOf(savedRect?.top?.toFloat() ?: 0f) }
 
     Column(
         modifier = modifier
@@ -103,7 +113,7 @@ fun QuickToolsScreen(viewModel: OneHandViewModel, modifier: Modifier = Modifier)
             title = "QUICK TOOLS",
             onDrag = { dx, dy -> offX += dx; offY += dy },
             onBack = { viewModel.navigateTo(ActiveWindow.MAIN_PANEL) },
-            onClose = { viewModel.togglePanel(false) }
+            onClose = { if (panelSettings.rememberFloatingPosition) store.put("v5_quick_tools", Rect(offX.toInt(), offY.toInt(), 0, 0)); viewModel.togglePanel(false) }
         )
 
         V5EdgeSlider("Bright", media.brightnessPercent, 0f..100f) { viewModel.setBrightness(it) }
@@ -126,8 +136,11 @@ fun QuickToolsScreen(viewModel: OneHandViewModel, modifier: Modifier = Modifier)
 fun MediaControlScreen(viewModel: OneHandViewModel, modifier: Modifier = Modifier) {
     val media by viewModel.mediaState.collectAsState()
     val panelSettings by viewModel.panelSettings.collectAsState()
-    var offX by remember { mutableFloatStateOf(0f) }
-    var offY by remember { mutableFloatStateOf(0f) }
+    val ctx = LocalContext.current
+    val store = remember { FloatingStore(ctx) }
+    val savedRect = remember { if (panelSettings.rememberFloatingPosition) store.get("v5_media_control") else null }
+    var offX by remember { mutableFloatStateOf(savedRect?.left?.toFloat() ?: 0f) }
+    var offY by remember { mutableFloatStateOf(savedRect?.top?.toFloat() ?: 0f) }
 
     Column(
         modifier = modifier
@@ -142,7 +155,7 @@ fun MediaControlScreen(viewModel: OneHandViewModel, modifier: Modifier = Modifie
             title = "MEDIA CONTROL",
             onDrag = { dx, dy -> offX += dx; offY += dy },
             onBack = { viewModel.navigateTo(ActiveWindow.MAIN_PANEL) },
-            onClose = { viewModel.togglePanel(false) }
+            onClose = { if (panelSettings.rememberFloatingPosition) store.put("v5_media_control", Rect(offX.toInt(), offY.toInt(), 0, 0)); viewModel.togglePanel(false) }
         )
 
         V5EdgeSlider(

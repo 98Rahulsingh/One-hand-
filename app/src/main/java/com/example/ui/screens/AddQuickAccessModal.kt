@@ -59,6 +59,7 @@ fun AddQuickAccessModal(
     val groupRemoved by viewModel.groupRemoved.collectAsState()
     val quickSettings by viewModel.quickSettings.collectAsState()
     val tileTargets by viewModel.tileTargets.collectAsState()
+    val pendingGesture by viewModel.pendingGestureToBind.collectAsState()
 
     var activeTab by remember { mutableIntStateOf(0) } // 0=Apps, 1=Action, 2=Groups
     var showGroupList by remember { mutableStateOf(false) }
@@ -144,7 +145,7 @@ fun AddQuickAccessModal(
                                     .height(28.dp)
                                     .clip(RoundedCornerShape(6.dp))
                                     .background(if (item.isAdded) Color(0xFF00BCD4).copy(alpha = 0.2f) else Color(0xFF10252C))
-                                    .clickable { viewModel.toggleItemAdded(item.id) }
+                                    .clickable { viewModel.bindAndFinish(item) }
                                     .padding(horizontal = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
@@ -173,7 +174,9 @@ fun AddQuickAccessModal(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    items(DefaultV5Actions) { actName ->
+                    val actionItems = masterItems.filter { it.type == ItemType.ACTION }
+                    items(actionItems) { item ->
+                        val actName = item.name
                         val actionKey = actName.lowercase().replace(" ", "_").replace("-", "")
                         val savedTarget = tileTargets[actionKey]
                         Row(
@@ -182,7 +185,7 @@ fun AddQuickAccessModal(
                                 .height(26.dp)
                                 .clip(RoundedCornerShape(6.dp))
                                 .background(Color(0xFF10252C))
-                                .clickable { viewModel.showToast("Selected: $actName") }
+                                .clickable { viewModel.bindAndFinish(item) }
                                 .padding(horizontal = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -300,7 +303,11 @@ fun AddQuickAccessModal(
                                             .clickable {
                                                 // Single tap selects & closes group list; re-tap deselects
                                                 selectedGroup = if (isSel) null else grp
-                                                if (!isSel) showGroupList = false
+                                                if (!isSel) {
+                                                    if (grp !in categories) viewModel.createGroupFromWindow(grp)
+                                                    viewModel.selectCategory(grp)
+                                                    showGroupList = false
+                                                }
                                             }
                                             .padding(horizontal = 8.dp),
                                         verticalAlignment = Alignment.CenterVertically,

@@ -94,6 +94,9 @@ fun PanelSettingsWindow(
             // 1. RIGHT
             item {
                 SlimCollapsibleSection("Right", "Right" in expanded, { toggleSec("Right") }) {
+                    SlimSwitch("Right Trigger ON/OFF", s.rightTriggerEnabled) {
+                        viewModel.updateSettings { cur -> cur.copy(rightTriggerEnabled = it) }
+                    }
                     SlimSlider("Trigger V Pos", s.rightTriggerVerticalPos.toFloat(), 0f..10f, "${s.rightTriggerVerticalPos}") {
                         viewModel.updateSettings { cur -> cur.copy(rightTriggerVerticalPos = it.toInt()) }
                     }
@@ -109,6 +112,9 @@ fun PanelSettingsWindow(
             // 2. LEFT
             item {
                 SlimCollapsibleSection("Left", "Left" in expanded, { toggleSec("Left") }) {
+                    SlimSwitch("Left Trigger ON/OFF", s.leftTriggerEnabled) {
+                        viewModel.updateSettings { cur -> cur.copy(leftTriggerEnabled = it) }
+                    }
                     SlimSlider("Trigger V Pos", s.leftTriggerVerticalPos.toFloat(), 0f..10f, "${s.leftTriggerVerticalPos}") {
                         viewModel.updateSettings { cur -> cur.copy(leftTriggerVerticalPos = it.toInt()) }
                     }
@@ -174,7 +180,7 @@ fun PanelSettingsWindow(
                                 color = Color(0xFF00E5FF),
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.clickable { viewModel.navigateTo(ActiveWindow.ADD_QUICK_ACCESS) }
+                                modifier = Modifier.clickable { viewModel.startBindGesture(g) }
                             )
                         }
                     }
@@ -189,6 +195,9 @@ fun PanelSettingsWindow(
                     }
                     SlimSlider("Floating Width", s.floatingWidthDp, 180f..380f, "${s.floatingWidthDp.toInt()}dp") {
                         viewModel.updateSettings { cur -> cur.copy(floatingWidthDp = it) }
+                    }
+                    SlimSwitch("Remember closed position", s.rememberFloatingPosition) {
+                        viewModel.updateSettings { cur -> cur.copy(rememberFloatingPosition = it) }
                     }
                 }
             }

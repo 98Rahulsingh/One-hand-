@@ -84,7 +84,8 @@ class PanelAccessibilityService : AccessibilityService() {
     private lateinit var wm: WindowManager
     private var owner: OverlayOwner? = null
     private var scope: CoroutineScope? = null
-    private var handleView: View? = null
+    private var rightHandleView: View? = null
+    private var leftHandleView: View? = null
     private var panelView: ComposeView? = null
 
     private val vm get() = (application as OneHandApplication).viewModel
@@ -253,21 +254,31 @@ class PanelAccessibilityService : AccessibilityService() {
         val overlayAllowed = !s.activityVisible && !s.suspended
         val panelNeeded = s.panelOpen || s.window != ActiveWindow.MAIN_PANEL
         if (overlayAllowed && panelNeeded) showPanel() else hidePanel()
-        if (overlayAllowed && !panelNeeded && s.settings.isEdgeHandleEnabled) showHandle(s.settings) else hideHandle()
+        if (overlayAllowed && !panelNeeded && s.settings.isEdgeHandleEnabled) {
+            if (s.settings.rightTriggerEnabled) showSideHandle(isRight = true, st = s.settings) else hideSideHandle(true)
+            if (s.settings.leftTriggerEnabled) showSideHandle(isRight = false, st = s.settings) else hideSideHandle(false)
+        } else {
+            hideHandle()
+        }
     }
 
-    private fun showHandle(st: PanelSettings) {
+    private fun showSideHandle(isRight: Boolean, st: PanelSettings) {
         val dm = resources.displayMetrics
-        val lp = (handleView?.layoutParams as? WindowManager.LayoutParams) ?: WindowManager.LayoutParams(
-            dp(14f), dp(st.handleHeightDp), WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+        val existing = if (isRight) rightHandleView else leftHandleView
+        val wDp = if (isRight) st.rightTriggerWidthDp else st.leftTriggerWidthDp
+        val hDp = if (isRight) st.rightTriggerLengthDp else st.leftTriggerLengthDp
+        val vPos = if (isRight) st.rightTriggerVerticalPos else st.leftTriggerVerticalPos
+
+        val lp = (existing?.layoutParams as? WindowManager.LayoutParams) ?: WindowManager.LayoutParams(
+            dp(wDp), dp(hDp), WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
         )
-        lp.height = dp(st.handleHeightDp)
-        lp.gravity = (if (st.isRightEdge) Gravity.END else Gravity.START) or Gravity.CENTER_VERTICAL
-        lp.y = ((st.verticalPosition / 10f - 0.5f) * dm.heightPixels).toInt()
+        lp.width = dp(wDp)
+        lp.height = dp(hDp)
+        lp.gravity = (if (isRight) Gravity.END else Gravity.START) or Gravity.CENTER_VERTICAL
+        lp.y = ((vPos / 10f - 0.5f) * dm.heightPixels).toInt()
 
-        val existing = handleView
         if (existing != null) {
             existing.alpha = st.handleOpacity.coerceIn(0.15f, 1f)
             wm.updateViewLayout(existing, lp)
@@ -278,18 +289,60 @@ class PanelAccessibilityService : AccessibilityService() {
             alpha = st.handleOpacity.coerceIn(0.15f, 1f)
         }
         var downX = 0f
+        var downY = 0f
+        var downTime = 0L
+        var lastTapTime = 0L
         var fired = false
         v.setOnTouchListener { _, ev ->
-            val inward = if (vm.panelSettings.value.isRightEdge) downX - ev.rawX else ev.rawX - downX
+            val inward = if (isRight) downX - ev.rawX else ev.rawX - downX
+            val dy = ev.rawY - downY
             when (ev.actionMasked) {
-                MotionEvent.ACTION_DOWN -> { downX = ev.rawX; fired = false }
-                MotionEvent.ACTION_MOVE -> if (!fired && inward > dp(20f)) { fired = true; openPanel() }
-                MotionEvent.ACTION_UP -> if (!fired && abs(ev.rawX - downX) < dp(6f)) openPanel()
+                MotionEvent.ACTION_DOWN -> {
+                    downX = ev.rawX; downY = ev.rawY
+                    downTime = System.currentTimeMillis()
+                    fired = false
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val held = System.currentTimeMillis() - downTime > 380L
+                    if (!fired && inward > dp(24f)) {
+                        fired = true
+                        if (held && st.gestureBindings.containsKey("Swipe Inward Hold")) vm.executeGesture("Swipe Inward Hold")
+                        else if (st.gestureBindings.containsKey("Swipe Inward")) vm.executeGesture("Swipe Inward")
+                        else openPanel()
+                    } else if (!fired && dy < -dp(36f)) {
+                        fired = true
+                        vm.executeGesture(if (held) "Swipe Up Hold" else "Swipe Up")
+                    } else if (!fired && dy > dp(36f)) {
+                        fired = true
+                        vm.executeGesture(if (held) "Swipe Down Hold" else "Swipe Down")
+                    }
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (!fired && abs(ev.rawX - downX) < dp(8f) && abs(ev.rawY - downY) < dp(8f)) {
+                        val now = System.currentTimeMillis()
+                        if (now - downTime > 450L && st.gestureBindings.containsKey("Long Press")) {
+                            vm.executeGesture("Long Press")
+                        } else if (now - lastTapTime < 280L && st.gestureBindings.containsKey("Double Tap")) {
+                            lastTapTime = 0L
+                            vm.executeGesture("Double Tap")
+                        } else {
+                            lastTapTime = now
+                            if (st.gestureBindings.containsKey("Single Tap")) vm.executeGesture("Single Tap")
+                            else openPanel()
+                        }
+                    }
+                }
             }
             true
         }
         wm.addView(v, lp)
-        handleView = v
+        if (isRight) rightHandleView = v else leftHandleView = v
+    }
+
+    private fun hideSideHandle(isRight: Boolean) {
+        val view = if (isRight) rightHandleView else leftHandleView
+        view?.let { runCatching { wm.removeView(it) } }
+        if (isRight) rightHandleView = null else leftHandleView = null
     }
 
     private fun openPanel() {
@@ -298,8 +351,8 @@ class PanelAccessibilityService : AccessibilityService() {
     }
 
     private fun hideHandle() {
-        handleView?.let { runCatching { wm.removeView(it) } }
-        handleView = null
+        hideSideHandle(true)
+        hideSideHandle(false)
     }
 
     private fun showPanel() {

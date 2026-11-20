@@ -114,9 +114,11 @@ data class PanelSettings(
     // Edge handle master ON / OFF switch
     val isEdgeHandleEnabled: Boolean = true,
     // Compact UI & Extended Settings
+    val rightTriggerEnabled: Boolean = true,
     val rightTriggerVerticalPos: Int = 5,
     val rightTriggerWidthDp: Float = 14f,
     val rightTriggerLengthDp: Float = 76f,
+    val leftTriggerEnabled: Boolean = false,
     val leftTriggerVerticalPos: Int = 5,
     val leftTriggerWidthDp: Float = 14f,
     val leftTriggerLengthDp: Float = 76f,

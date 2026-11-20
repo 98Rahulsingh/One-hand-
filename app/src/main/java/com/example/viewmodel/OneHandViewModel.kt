@@ -140,6 +140,44 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         _panelSettings.update(transform)
     }
 
+    private val _pendingGesture = MutableStateFlow<String?>(null)
+    val pendingGestureToBind: StateFlow<String?> = _pendingGesture.asStateFlow()
+
+    fun startBindGesture(gestureName: String) {
+        _pendingGesture.value = gestureName
+        navigateTo(ActiveWindow.ADD_QUICK_ACCESS)
+    }
+
+    fun clearPendingGesture() { _pendingGesture.value = null }
+
+    fun bindAndFinish(item: AppItem) {
+        val g = _pendingGesture.value
+        if (g != null) {
+            bindGesture(g, item.name)
+            _pendingGesture.value = null
+            showToast("$g → ${item.name}")
+            navigateTo(ActiveWindow.PANEL_SETTINGS)
+        } else {
+            toggleItemAdded(item.id)
+        }
+    }
+
+    fun executeGesture(gestureName: String) {
+        val label = _panelSettings.value.gestureBindings[gestureName]
+        if (label.isNullOrBlank()) {
+            navigateTo(ActiveWindow.MAIN_PANEL)
+            togglePanel(true)
+            return
+        }
+        val match = _masterItems.value.firstOrNull { it.name.equals(label, ignoreCase = true) }
+        if (match != null) {
+            launchApp(match)
+        } else {
+            val actId = label.lowercase().replace(" ", "_").replace("-", "")
+            toggleQuickSetting(actId)
+        }
+    }
+
     fun bindGesture(gestureName: String, itemLabel: String) {
         _panelSettings.update { s ->
             s.copy(gestureBindings = s.gestureBindings + (gestureName to itemLabel))

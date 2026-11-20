@@ -1,7 +1,6 @@
 package com.example.ui.screens
 
 import com.example.model.MediaStreamItem
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import com.example.model.ItemType
 import com.example.system.AppIcons
@@ -527,32 +526,7 @@ fun MainEdgePanel(
                             onDone = { viewModel.stopReorder() }
                         )
                     }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 2.dp, vertical = 2.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "QUICK SETTINGS",
-                            color = Color(0xFF00E5FF),
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.5.sp
-                        )
-                        IconButton(
-                            onClick = { viewModel.toggleBottomQuickSettings() },
-                            modifier = Modifier.size(22.dp).testTag("btn_toggle_bottom_quick_settings")
-                        ) {
-                            Icon(
-                                imageVector = if (panelSettings.isBottomQuickSettingsVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                contentDescription = if (panelSettings.isBottomQuickSettingsVisible) "Hide Quick Settings" else "Show Quick Settings",
-                                tint = if (panelSettings.isBottomQuickSettingsVisible) Color(0xFF00E5FF) else Color(0xFFFFD54F),
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
-                    }
+                    
 
                 }
 
