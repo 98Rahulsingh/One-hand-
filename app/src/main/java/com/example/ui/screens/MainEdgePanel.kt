@@ -18,6 +18,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -145,6 +146,7 @@ fun MainEdgePanel(
     val showAddGroupDialog by viewModel.showAddGroupDialog.collectAsState()
 
     var newGroupNameInput by remember { mutableStateOf("") }
+    var panelSwipeDistance by remember { mutableStateOf(0f) }
 
     // Persistent Geometry state (user can resize directly in preview!)
     var currentWidthDp by remember(panelSettings.mainPanelGeometry.widthDp) {
@@ -295,6 +297,16 @@ fun MainEdgePanel(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .pointerInput(Unit) {
+                                detectHorizontalDragGestures(
+                                    onHorizontalDrag = { _, drag -> panelSwipeDistance += drag },
+                                    onDragEnd = {
+                                        if (panelSwipeDistance < -55f) viewModel.navigateTo(ActiveWindow.QUICK_PANEL)
+                                        else if (panelSwipeDistance > 55f) viewModel.navigateTo(ActiveWindow.ONE_HAND_MODE)
+                                        panelSwipeDistance = 0f
+                                    }
+                                )
+                            }
                             .padding(bottom = 2.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
@@ -394,109 +406,66 @@ fun MainEdgePanel(
                             )
                         }
 
-                        // Center content column: Apps + Groups
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
+                        // Apps grid and vertical Groups rail. Each group is independently
+                        // selectable and long-press reorderable; the + opens the shared Add Item page.
+                        Row(
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            // LINE 1: APPS Grid with '+' button at the end
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f)
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(3),
+                                contentPadding = PaddingValues(vertical = 2.dp),
+                                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                verticalArrangement = Arrangement.spacedBy(5.dp),
+                                modifier = Modifier.weight(1f).fillMaxHeight()
                             ) {
-                                if (categoryFilteredItems.isEmpty()) {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            Text(
-                                                text = if (selectedLetter != null) "No apps starting with '$selectedLetter'" else "No apps in '$selectedCategory'",
-                                                color = Color(0xFF80DEEA).copy(alpha = 0.6f),
-                                                fontSize = 11.sp,
-                                                textAlign = TextAlign.Center
-                                            )
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            AddAppTile(onClick = { viewModel.openAddWindow(forTiles = false) })
-                                        }
-                                    }
-                                } else {
-                                    LazyVerticalGrid(
-                                        columns = GridCells.Fixed(panelSettings.columns.coerceIn(2, 4)),
-                                        contentPadding = PaddingValues(vertical = 2.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(5.dp),
-                                        verticalArrangement = Arrangement.spacedBy(5.dp),
-                                        modifier = Modifier.fillMaxSize()
-                                    ) {
-                                        items(categoryFilteredItems, key = { it.id }) { item ->
-                                            CompactAppTile(
-                                                item = item,
-                                                onClick = { viewModel.launchApp(item) }
-                                            )
-                                        }
-
-                                        // Last '+' Tile right after apps: to add/remove apps from this group!
-                                        item(key = "add_app_tile") {
-                                            AddAppTile(onClick = { viewModel.openAddWindow(forTiles = false) })
-                                        }
-                                    }
+                                items(categoryFilteredItems.take(18), key = { it.id }) { item ->
+                                    CompactAppTile(item = item, onClick = { viewModel.launchApp(item) })
+                                }
+                                item(key = "add_app_tile") {
+                                    AddAppTile(onClick = { viewModel.openAddWindow(forTiles = false) })
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            // LINE 2: GROUPS Selector Row (with functioning + button for new custom group!)
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(5.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            LazyColumn(
+                                modifier = Modifier.width(76.dp).fillMaxHeight(),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                contentPadding = PaddingValues(vertical = 2.dp)
                             ) {
-                                categories.forEach { category ->
-                                    val isSelected = selectedCategory == category
-                                    val isTarget = reorder?.isGroup == true && reorder?.id == category
+                                items(categories, key = { it }) { category ->
+                                    val selected = selectedCategory == category
+                                    val moving = reorder?.isGroup == true && reorder?.id == category
                                     Box(
                                         modifier = Modifier
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(if (isTarget) Color(0xFFFFD54F) else if (isSelected) Color(0xFF00E5FF) else Color(0xFF102E34))
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(9.dp))
+                                            .background(if (moving) Color(0xFFFFD54F) else if (selected) Color(0xFF00E5FF) else Color(0xFF102E34))
                                             .pointerInput(category) {
                                                 detectTapGestures(
                                                     onLongPress = { viewModel.startReorder(true, category) },
                                                     onTap = { viewModel.selectCategory(category) }
                                                 )
                                             }
-                                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                                            .testTag("group_chip_$category")
+                                            .padding(horizontal = 5.dp, vertical = 8.dp)
+                                            .testTag("group_rail_$category"),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        Text(
-                                            text = category,
-                                            fontSize = 10.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            color = if (isSelected || isTarget) Color(0xFF061A1D) else Color(0xFFB2EBF2)
-                                        )
+                                        Text(category, fontSize = 9.sp, maxLines = 2, textAlign = TextAlign.Center,
+                                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (selected || moving) Color(0xFF061A1D) else Color(0xFFB2EBF2))
                                     }
                                 }
-
-                                // '+' Button for adding new manual group!
-                                Box(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF173D45))
-                                        .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.6f), CircleShape)
-                                        .clickable { viewModel.openAddWindow(forTiles = false, newGroup = true) }
-                                        .testTag("add_custom_group_button"),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Add,
-                                        contentDescription = "Add Custom Group",
-                                        tint = Color(0xFF00E5FF),
-                                        modifier = Modifier.size(15.dp)
-                                    )
+                                item(key = "add_custom_group_rail") {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth().clip(CircleShape)
+                                            .background(Color(0xFF173D45))
+                                            .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.6f), CircleShape)
+                                            .clickable { viewModel.openAddWindow(forTiles = false, newGroup = true) }
+                                            .padding(vertical = 8.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Default.Add, contentDescription = "Add Group", tint = Color(0xFF00E5FF), modifier = Modifier.size(16.dp))
+                                    }
                                 }
                             }
                         }
