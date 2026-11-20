@@ -13,7 +13,14 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.Image
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
+import com.example.system.AppIcons
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,6 +77,7 @@ fun AddQuickAccessModal(
     var showNewToggle by remember { mutableStateOf(false) }
     var activeLetter by remember { mutableStateOf<Char?>(null) }
 
+    val ctx = LocalContext.current
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
@@ -150,7 +158,27 @@ fun AddQuickAccessModal(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(item.name, color = Color(0xFFE0F7FA), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                    val bmp = remember(item.packageName) {
+                                        if (item.packageName.isNotBlank()) AppIcons.get(ctx, item.packageName) else null
+                                    }
+                                    if (bmp != null) {
+                                        Image(
+                                            bitmap = bmp,
+                                            contentDescription = item.name,
+                                            modifier = Modifier.size(18.dp).clip(RoundedCornerShape(4.dp))
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = getIconVectorForName(item.iconName),
+                                            contentDescription = item.name,
+                                            tint = Color(0xFF00E5FF),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(item.name, color = Color(0xFFE0F7FA), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
                                 Text(if (item.isAdded) "✓" else "+", color = Color(0xFF00E5FF), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                         }
@@ -201,6 +229,13 @@ fun AddQuickAccessModal(
                                 ) {
                                     Text(if (savedTarget != null) "◎" else "Track", color = Color(0xFF00E5FF), fontSize = 8.sp, fontWeight = FontWeight.Bold)
                                 }
+                                Spacer(Modifier.width(5.dp))
+                                Icon(
+                                    imageVector = getIconVectorForName(item.iconName),
+                                    contentDescription = actName,
+                                    tint = Color(0xFF00E5FF),
+                                    modifier = Modifier.size(15.dp)
+                                )
                                 if (panelSettings.showActionNameInList) {
                                     Spacer(Modifier.width(6.dp))
                                     Text(
@@ -313,7 +348,16 @@ fun AddQuickAccessModal(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Text(grp, color = Color.White, fontSize = 10.sp)
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Default.Folder,
+                                                contentDescription = grp,
+                                                tint = if (isSel) Color.White else Color(0xFF00E5FF),
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Spacer(Modifier.width(6.dp))
+                                            Text(grp, color = Color.White, fontSize = 10.sp)
+                                        }
                                         if (isSel) Text("✓", color = Color.White, fontSize = 10.sp)
                                     }
                                 }

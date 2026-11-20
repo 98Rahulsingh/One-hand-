@@ -219,8 +219,12 @@ class PanelAccessibilityService : AccessibilityService() {
     }
 
     private fun closeShade() {
-        if (Build.VERSION.SDK_INT >= 31) performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE)
-        else performGlobalAction(GLOBAL_ACTION_BACK)
+        if (Build.VERSION.SDK_INT >= 31) {
+            performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE)
+        }
+        mainHandler.postDelayed({
+            performGlobalAction(GLOBAL_ACTION_BACK)
+        }, 120L)
     }
 
     private fun labelOf(n: AccessibilityNodeInfo?, depth: Int): String? {
@@ -393,12 +397,12 @@ class PanelAccessibilityService : AccessibilityService() {
             mainHandler.postDelayed({
                 tapAt(target.x, target.y) { ok ->
                     if (ok || labels.isEmpty()) {
-                        mainHandler.postDelayed({ closeShade(); done(ok) }, 90L)
+                        mainHandler.postDelayed({ closeShade(); done(ok) }, 240L)
                     } else {
                         tryTap(labels, null, 0, done)
                     }
                 }
-            }, 260L)
+            }, 340L)
         } else {
             tryTap(labels, null, 0, done)
         }
@@ -422,11 +426,11 @@ class PanelAccessibilityService : AccessibilityService() {
                 }
             }
             if (clicked) {
-                mainHandler.postDelayed({ closeShade(); done(true) }, 90L)
+                mainHandler.postDelayed({ closeShade(); done(true) }, 240L)
             } else if (attempt < 12) {
                 tryTap(labels, target, attempt + 1, done)
             } else if (target != null) {
-                tapAt(target.x, target.y) { ok -> mainHandler.postDelayed({ closeShade(); done(ok) }, 90L) }
+                tapAt(target.x, target.y) { ok -> mainHandler.postDelayed({ closeShade(); done(ok) }, 240L) }
             } else {
                 closeShade()
                 done(false)
