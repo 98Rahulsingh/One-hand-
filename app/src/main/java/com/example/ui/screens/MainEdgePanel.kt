@@ -1181,7 +1181,7 @@ fun ActiveMediaStreams(
     streams: List<MediaStreamItem>,
     mediaAccessOn: Boolean,
     onSelect: (String) -> Unit,
-    onOpenSettings: () -> Unit = {},
+    onEnableAccess: () -> Unit = {},
     onScan: () -> Unit = {}
 ) {
     var hidden by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
