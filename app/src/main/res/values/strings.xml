@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">One Hand Control</string>
+    <string name="tile_label">Side Panel</string>
+    <string name="a11y_description">Lets One Hand Control show the side panel and run system actions such as recents, lock screen and split screen.</string>
+</resources>
