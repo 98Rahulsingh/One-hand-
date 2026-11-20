@@ -160,7 +160,7 @@ fun AddQuickAccessModal(
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                                     val bmp = remember(item.packageName) {
-                                        if (item.packageName.isNotBlank()) AppIcons.get(ctx, item.packageName) else null
+                                        if (item.packageName.isNotBlank()) AppIcons.get(item.packageName) else null
                                     }
                                     if (bmp != null) {
                                         Image(
