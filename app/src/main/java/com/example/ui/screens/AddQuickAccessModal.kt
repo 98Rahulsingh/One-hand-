@@ -192,7 +192,7 @@ fun AddQuickAccessModal(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(4.dp))
                                         .background(Color(0xFF00BCD4).copy(alpha = 0.25f))
-                                        .clickable { viewModel.trackTile(actionKey) }
+                                        .clickable { viewModel.startTrackTile(actionKey) }
                                         .padding(horizontal = 5.dp, vertical = 2.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -389,8 +389,6 @@ fun AddQuickAccessModal(
                     }
                 }
             }
-        }
-
         }
         activeLetter?.let { ch ->
             Box(
