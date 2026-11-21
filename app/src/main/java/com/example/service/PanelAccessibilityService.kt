@@ -188,6 +188,52 @@ class PanelAccessibilityService : AccessibilityService() {
 
     private var trackView: View? = null
 
+    /** Lets the user mark the exact Android Back button location; saved for Mini-Macro use. */
+    fun startBackButtonTracking(done: (TapTarget?) -> Unit) {
+        showBackTrackLayer(done)
+    }
+
+    private fun showBackTrackLayer(done: (TapTarget?) -> Unit) {
+        val hint = TextView(this).apply {
+            text = "Tap exactly where your Android BACK button is.\nThis only records its position."
+            setTextColor(Color.WHITE)
+            textSize = 16f
+            gravity = Gravity.CENTER
+            setPadding(dp(24f), dp(24f), dp(24f), dp(24f))
+        }
+        val layer = FrameLayout(this).apply {
+            setBackgroundColor(0x99000000.toInt())
+            addView(hint, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        }
+        var finished = false
+        fun finish(target: TapTarget?) {
+            if (finished) return
+            finished = true
+            hideTrackLayer()
+            if (target != null) {
+                getSharedPreferences("mini_macro_back_target", Context.MODE_PRIVATE).edit()
+                    .putInt("x", target.x).putInt("y", target.y).putBoolean("saved", true).apply()
+                MiniMacroTrace.record(this, "BACK-CAL-${System.currentTimeMillis()}", "BACK_TARGET_CAPTURE", "SAVED", "Back button coordinate=${target.x},${target.y}")
+            }
+            done(target)
+        }
+        layer.setOnTouchListener { _, ev ->
+            if (ev.actionMasked == MotionEvent.ACTION_UP) {
+                finish(TapTarget(ev.rawX.toInt(), ev.rawY.toInt(), "Android Back"))
+            }
+            true
+        }
+        val lp = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        )
+        runCatching { wm.addView(layer, lp); trackView = layer }
+            .onFailure { finish(null) }
+        mainHandler.postDelayed({ finish(null) }, 20_000L)
+    }
+
     /** Opens quick settings and covers it with a see-through layer; the next press becomes the saved spot. */
     fun startTracking(done: (TapTarget?) -> Unit) {
         performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS)
@@ -271,6 +317,19 @@ class PanelAccessibilityService : AccessibilityService() {
 
     /** Tap the Android navigation-bar Back control directly after the Quick Settings tile action. */
     private fun tapNavigationBackButton(runId: String?, done: (Boolean) -> Unit) {
+        val savedBack = getSharedPreferences("mini_macro_back_target", Context.MODE_PRIVATE)
+        if (savedBack.getBoolean("saved", false)) {
+            val x = savedBack.getInt("x", -1)
+            val y = savedBack.getInt("y", -1)
+            if (x >= 0 && y >= 0) {
+                MiniMacroTrace.record(this, runId, "BACK_TARGET_TAP", "START", "Using user-marked Back position ($x,$y)")
+                tapAt(x, y) { ok ->
+                    MiniMacroTrace.record(this, runId, "BACK_TARGET_TAP", if (ok) "GESTURE_SENT" else "FAILED", "User-marked Back coordinate gesture dispatched=$ok")
+                    done(ok)
+                }
+                return
+            }
+        }
         fun findBack(n: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
             if (n == null) return null
             val label = "${n.text ?: ""} ${n.contentDescription ?: ""}".trim().lowercase()

@@ -235,6 +235,9 @@ fun AddQuickAccessModal(
                             TextButton(onClick = { macroTraceText = viewModel.miniMacroTraceReport(); showMacroTrace = true }) {
                                 Text("Trace", color = Color(0xFFB2EBF2), fontSize = 10.sp)
                             }
+                            TextButton(onClick = { viewModel.startTrackBackButton() }) {
+                                Text("Back Track", color = Color(0xFF80DEEA), fontSize = 10.sp)
+                            }
                             TextButton(onClick = { showConnectivityCreator = !showConnectivityCreator }) {
                                 Text("+", color = Color(0xFF00E5FF), fontSize = 20.sp, fontWeight = FontWeight.Bold)
                             }

@@ -880,6 +880,22 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         return "Accessibility Service: $a11y\nWRITE_SECURE_SETTINGS: $sec\n" + actions.macroStatusReport()
     }
 
+    fun startTrackBackButton() {
+        val svc = PanelAccessibilityService.instance
+        if (svc == null || !perms.isAccessibilityOn()) {
+            showToast("Turn on Accessibility first")
+            return
+        }
+        showToast("Tap exactly on the Android Back button")
+        _suspended.value = true
+        svc.startBackButtonTracking { target ->
+            _suspended.value = false
+            if (target != null) showToast("Back position saved: ${target.x}, ${target.y}")
+            else showToast("Back position not captured")
+            openAddWindow(forTiles = _tilesTab.value)
+        }
+    }
+
     fun startTrackTile(id: String) {
         val returnToTilesTab = _tilesTab.value
         val svc = PanelAccessibilityService.instance
