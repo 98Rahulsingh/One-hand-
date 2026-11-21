@@ -89,6 +89,9 @@ fun AddQuickAccessModal(
     val allAppsAndActions = remember(masterItems) {
         masterItems.filter { it.type == ItemType.APP || it.type == ItemType.ACTION }.sortedBy { it.name.lowercase() }
     }
+    val actionItems = remember(masterItems) {
+        masterItems.filter { it.type == ItemType.ACTION }.sortedBy { it.name.lowercase() }
+    }
 
     FloatingWindowCard(
         title = "Add Item",
@@ -263,8 +266,10 @@ fun AddQuickAccessModal(
                 V5SlimSwitchRow("Hide Action Names", !panelSettings.showActionNameInList) { hide ->
                     viewModel.updateSettings { it.copy(showActionNameInList = !hide) }
                 }
+                Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 LazyColumn(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    state = listState,
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     items(quickSettings) { qs ->
@@ -332,23 +337,30 @@ fun AddQuickAccessModal(
                             }
                         }
                     }
-                    if (false) {
-                        val actionItems = masterItems.filter { it.type == ItemType.ACTION }
-                        items(actionItems) { item ->
-                            val actName = item.name
-                        val actionKey = actName.lowercase().replace(" ", "_").replace("-", "")
+                    items(actionItems) { item ->
+                        val actionKey = when (item.id) {
+                            "act_bt" -> "bluetooth"
+                            else -> item.id.removePrefix("act_")
+                        }
                         val savedTarget = tileTargets[actionKey]
+                        val actionTile = quickSettings.firstOrNull { it.id == actionKey }
+                        val isSelected = when {
+                            pendingGesture != null -> false
+                            tilesTab -> actionTile?.isVisible == true
+                            selectedGroup != null -> isInGroup(item, selectedGroup!!, groupAdded, groupRemoved, manualGroups)
+                            else -> item.isAdded
+                        }
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(26.dp)
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFF10252C))
+                                .background(if (isSelected) Color(0xFF00BCD4).copy(alpha = 0.22f) else Color(0xFF10252C))
                                 .clickable {
                                     if (pendingGesture != null) {
                                         viewModel.bindAndFinish(item)
                                     } else if (tilesTab) {
-                                        viewModel.toggleAppInQuickSettings(item)
+                                        if (actionTile != null) viewModel.toggleTileVisible(actionKey)
                                     } else if (selectedGroup != null) {
                                         viewModel.toggleItemInGroup(item.id, selectedGroup!!)
                                     } else {
@@ -373,30 +385,26 @@ fun AddQuickAccessModal(
                                 Spacer(Modifier.width(5.dp))
                                 Icon(
                                     imageVector = getIconVectorForName(item.iconName),
-                                    contentDescription = actName,
+                                    contentDescription = item.name,
                                     tint = Color(0xFF00E5FF),
                                     modifier = Modifier.size(15.dp)
                                 )
                                 Spacer(Modifier.width(6.dp))
-                                    Text(
-                                        text = if (savedTarget != null && savedTarget.label.isNotBlank()) "${actName} (${savedTarget.label})" else actName,
-                                        color = Color(0xFFE0F7FA),
-                                        fontSize = 10.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
+                                Text(item.name, color = Color(0xFFE0F7FA), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
-                            if (savedTarget != null) {
-                                Text(
-                                    text = "Reset",
-                                    color = Color(0xFFFFD54F),
-                                    fontSize = 8.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.clickable { viewModel.clearTileTarget(actionKey) }.padding(horizontal = 4.dp)
-                                )
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                if (savedTarget != null) {
+                                    Text(
+                                        text = "Reset",
+                                        color = Color(0xFFFFD54F),
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.clickable { viewModel.clearTileTarget(actionKey) }.padding(horizontal = 4.dp)
+                                    )
+                                }
+                                Text(if (isSelected) "✓" else "+", color = Color(0xFF00E5FF), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                         }
-                    }
                     }
                     item {
                         Box(
@@ -412,6 +420,16 @@ fun AddQuickAccessModal(
                             Text("+ Create Toggle", color = Color(0xFF00E5FF), fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
+                }
+                Spacer(Modifier.width(4.dp))
+                V5AbcdRail(
+                    onLetter = { ch ->
+                        activeLetter = ch
+                        val idx = actionItems.indexOfFirst { it.name.startsWith(ch, ignoreCase = true) }
+                        if (idx >= 0) scope.launch { listState.scrollToItem(quickSettings.size + idx) }
+                    },
+                    onRelease = { activeLetter = null }
+                )
                 }
                 if (showNewToggle) {
                     Row(verticalAlignment = Alignment.CenterVertically) {

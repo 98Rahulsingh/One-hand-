@@ -231,7 +231,15 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         }
         val match = _masterItems.value.firstOrNull { it.name.equals(label, ignoreCase = true) }
         if (match != null) {
-            launchApp(match)
+            if (match.type == ItemType.ACTION) {
+                val actionId = when (match.id) {
+                    "act_bt" -> "bluetooth"
+                    else -> match.id.removePrefix("act_")
+                }
+                toggleQuickSetting(actionId)
+            } else {
+                launchApp(match)
+            }
         } else {
             val actId = label.lowercase().replace(" ", "_").replace("-", "")
             toggleQuickSetting(actId)
