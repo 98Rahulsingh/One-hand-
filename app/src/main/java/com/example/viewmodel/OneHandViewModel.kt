@@ -591,6 +591,44 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun toggleActionAdded(item: AppItem) {
+        _masterItems.update { list ->
+            val existing = list.firstOrNull { it.id == item.id }
+            if (existing == null) {
+                showToast("Added '${item.name}'")
+                list + item.copy(isAdded = true)
+            } else {
+                val enabled = !existing.isAdded
+                showToast(if (enabled) "Added '${item.name}'" else "Removed '${item.name}'")
+                list.map { if (it.id == item.id) it.copy(isAdded = enabled) else it }
+            }
+        }
+    }
+
+    fun toggleActionInQuickSettings(tileId: String, item: AppItem) {
+        _quickSettings.update { list ->
+            if (list.any { it.id == tileId }) {
+                list.map { if (it.id == tileId) it.copy(isVisible = !it.isVisible) else it }
+            } else {
+                list + QuickSettingItem(
+                    id = tileId, name = item.name, iconName = item.iconName,
+                    isEnabled = false, color = item.iconColor,
+                    description = item.subtitle, isVisible = true
+                )
+            }
+        }
+        saveLayout()
+        showToast("Updated Quick Settings: ${item.name}")
+    }
+
+    fun bindActionAndFinish(item: AppItem, quickSettingId: String) {
+        val gesture = _pendingGesture.value ?: return
+        bindGesture(gesture, quickSettingId)
+        _pendingGesture.value = null
+        showToast("$gesture → ${item.name}")
+        navigateTo(ActiveWindow.PANEL_SETTINGS)
+    }
+
     // ---- Groups, apps and quick tiles (Window 4) ----
     private fun saveLayout() {
         layout.saveList("categories", _availableCategories.value)
@@ -645,7 +683,11 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun toggleItemInGroup(itemId: String, group: String) {
-        val item = _masterItems.value.find { it.id == itemId } ?: return
+        val item = _masterItems.value.find { it.id == itemId } ?: AppItem(
+            id = itemId, name = itemId.removePrefix("act_qs_"), packageName = "",
+            type = ItemType.ACTION, categoryName = "Tools", iconName = "apps",
+            isAdded = false
+        )
         val member = isInGroup(item, group, _groupAdded.value, _groupRemoved.value, _manualGroups.value)
         val add = _groupAdded.value[group].orEmpty()
         val rem = _groupRemoved.value[group].orEmpty()
