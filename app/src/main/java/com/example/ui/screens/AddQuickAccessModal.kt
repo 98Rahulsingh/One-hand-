@@ -103,6 +103,21 @@ fun AddQuickAccessModal(
                 .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
+            if (pendingGesture != null) {
+                Text(
+                    text = "Target: Gesture ($pendingGesture) — tap any App or Action to bind",
+                    color = Color(0xFFFFD54F),
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            } else if (selectedGroup != null) {
+                Text(
+                    text = "Target: Group ($selectedGroup) — tap Apps/Actions to add/remove",
+                    color = Color(0xFF00E5FF),
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
             // Single horizontal top bar: Apps | Action | Groups
             Row(
                 modifier = Modifier.fillMaxWidth(),

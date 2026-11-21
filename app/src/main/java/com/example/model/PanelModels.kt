@@ -102,6 +102,7 @@ data class PanelSettings(
     val lockScreenEnabled: Boolean = false,
     val shortcutsEnabled: Boolean = false,
     val autostartEnabled: Boolean = false,
+    val secureSettingsEnabled: Boolean = false,
     val noPauseEnabled: Boolean = false,
     val freeformSupportEnabled: Boolean = false,
     val forceResizableEnabled: Boolean = false,

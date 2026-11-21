@@ -292,6 +292,7 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
                 lockScreenEnabled = perms.hasLockScreenOp(),
                 shortcutsEnabled = perms.hasShortcutsOp(),
                 autostartEnabled = perms.hasAutostart(),
+                secureSettingsEnabled = perms.hasSecureSettings(),
                 noPauseEnabled = perms.hasNoPause(),
                 freeformSupportEnabled = perms.isFreeformSupportOn(),
                 forceResizableEnabled = perms.isForceResizableOn()
@@ -759,6 +760,12 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Opens quick settings; the next icon you press there becomes what this tile presses. */
+    fun runMacroDiagnostics(): String {
+        val a11y = if (PanelAccessibilityService.instance != null) "Connected" else "Disconnected"
+        val sec = if (perms.hasSecureSettings()) "Granted" else "Not Granted"
+        return "Accessibility Service: $a11y\nWRITE_SECURE_SETTINGS: $sec\n" + actions.macroStatusReport()
+    }
+
     fun startTrackTile(id: String) {
         val svc = PanelAccessibilityService.instance
         if (svc == null || !perms.isAccessibilityOn()) {

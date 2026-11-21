@@ -295,6 +295,35 @@ fun PanelSettingsWindow(
                 }
             }
 
+            // 7B. DIAGNOSTICS CHECKER (Quick Mini-Macro)
+            item {
+                var diagText by remember { mutableStateOf("") }
+                SlimCollapsibleSection("Diagnostics Checker", "Diagnostics Checker" in expanded, { toggleSec("Diagnostics Checker") }) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(26.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFF00BCD4))
+                            .clickable { diagText = viewModel.runMacroDiagnostics() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Run Mini-Macro Check", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    if (diagText.isNotBlank()) {
+                        Text(
+                            text = diagText,
+                            color = Color(0xFF80DEEA),
+                            fontSize = 9.sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFF09161A), RoundedCornerShape(6.dp))
+                                .padding(6.dp)
+                        )
+                    }
+                }
+            }
+
             // 8. PERMISSIONS + OTHER
             item {
                 SlimCollapsibleSection("Permissions", "Permissions" in expanded, { toggleSec("Permissions") }) {
@@ -306,7 +335,8 @@ fun PanelSettingsWindow(
                         Triple("write_settings", "Modify Settings", s.writeSettingsEnabled),
                         Triple("bg_start", "Background Launch", s.bgStartEnabled),
                         Triple("battery_optimization", "Battery Optimization", s.batteryOptimizationIgnored),
-                        Triple("autostart", "Auto Start", s.autostartEnabled)
+                        Triple("autostart", "Auto Start", s.autostartEnabled),
+                        Triple("secure_settings", "Write Secure Settings (ADB/Shizuku)", s.secureSettingsEnabled)
                     )
                     corePerms.forEach { (id, title, granted) ->
                         SlimPermissionRow(title, granted) { viewModel.openSystemScreen(id) }

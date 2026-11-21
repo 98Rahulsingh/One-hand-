@@ -124,7 +124,7 @@ class QuickActions(private val ctx: Context, private val perms: PermissionsManag
 
     private fun performInner(id: String): ActionResult = try {
         val tapped = targets[id]
-        if (tapped != null) viaShade(nameOf(id), listOfNotNull(tapped.label.takeIf { it.isNotBlank() }), tapped) else when (id) {
+        if (tapped != null) return viaShade(nameOf(id), listOfNotNull(tapped.label.takeIf { it.isNotBlank() }), tapped) else when (id) {
             "torch" -> torch()
             "rotate" -> rotate()
             "darkmode" -> secureFlip("Dark mode", "ui_night_mode", off = 1, on = 2, global = false)
@@ -314,6 +314,11 @@ class QuickActions(private val ctx: Context, private val perms: PermissionsManag
     }
 
     /** A readable report of which routes this phone allows. */
+    fun macroStatusReport(): String {
+        val tStr = if (targets.isEmpty()) "None" else targets.entries.joinToString(", ") { "${it.key}:(${it.value.x},${it.value.y})" }
+        return "Targets: $tStr\nLast Tile: $lastTile\nLast App: $lastLaunch"
+    }
+
     fun diagnostics(): String {
         val sb = StringBuilder()
         val mode = try {
