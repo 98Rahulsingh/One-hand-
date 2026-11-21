@@ -269,42 +269,70 @@ class PanelAccessibilityService : AccessibilityService() {
         if (!sent) done(false)
     }
 
-    /** Return from the opened Quick Settings page using Android's direct Back navigation.
-     * If System UI is still showing after the Back event, dismiss the shade as a fallback.
-     * Do not send a second Back to the underlying app.
-     */
-    private fun closeShade(runId: String? = null) {
-        // Let the tile's ripple/detail-panel animation finish before sending Back.
-        // Some Android 15 System UI builds need a second Back to leave the shade
-        // after the first Back closes a tile detail surface.
-        mainHandler.postDelayed({
-            val backSent = performGlobalAction(GLOBAL_ACTION_BACK)
-            MiniMacroTrace.record(this, runId, "DIRECT_BACK", if (backSent) "REQUESTED" else "FAILED",
-                "First Accessibility GLOBAL_ACTION_BACK accepted=$backSent; delayed 550ms after tile click")
-            mainHandler.postDelayed({
-                val systemUiStillVisible = runCatching {
-                    windows.any { it.root?.packageName?.toString()?.contains("systemui", ignoreCase = true) == true }
-                }.getOrDefault(false)
-                if (systemUiStillVisible) {
-                    val retrySent = performGlobalAction(GLOBAL_ACTION_BACK)
-                    MiniMacroTrace.record(this, runId, "DIRECT_BACK_RETRY", if (retrySent) "REQUESTED" else "FAILED",
-                        "System UI still visible after first Back; second Back accepted=$retrySent")
-                    mainHandler.postDelayed({
-                        val stillVisible = runCatching {
-                            windows.any { it.root?.packageName?.toString()?.contains("systemui", ignoreCase = true) == true }
-                        }.getOrDefault(false)
-                        if (stillVisible && Build.VERSION.SDK_INT >= 31) {
-                            val dismissed = performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE)
-                            MiniMacroTrace.record(this, runId, "BACK_FALLBACK", if (dismissed) "USED" else "FAILED",
-                                "System UI remained after two Back attempts; dismiss shade accepted=$dismissed")
-                        } else {
-                            MiniMacroTrace.record(this, runId, "RETURN_CHECK", "PASS", "System UI no longer visible after Back")
-                        }
-                    }, 400L)
-                } else {
-                    MiniMacroTrace.record(this, runId, "RETURN_CHECK", "PASS", "System UI no longer visible after first Back")
+    /** Tap the Android navigation-bar Back control directly after the Quick Settings tile action. */
+    private fun tapNavigationBackButton(runId: String?, done: (Boolean) -> Unit) {
+        fun findBack(n: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
+            if (n == null) return null
+            val label = "${n.text ?: ""} ${n.contentDescription ?: ""}".trim().lowercase()
+            if (label == "back" || label == "back button" || label == "navigate back") {
+                if (n.isClickable) return n
+                var p = n.parent
+                while (p != null) {
+                    if (p.isClickable) return p
+                    p = p.parent
                 }
-            }, 450L)
+            }
+            for (i in 0 until n.childCount) findBack(n.getChild(i))?.let { return it }
+            return null
+        }
+
+        val navNode = runCatching {
+            windows.asSequence().mapNotNull { it.root }.mapNotNull { findBack(it) }.firstOrNull()
+        }.getOrNull()
+        if (navNode != null && runCatching { navNode.performAction(AccessibilityNodeInfo.ACTION_CLICK) }.getOrDefault(false)) {
+            MiniMacroTrace.record(this, runId, "NAV_BAR_BACK_TAP", "REQUESTED", "Clicked the accessible Android navigation Back button")
+            done(true)
+            return
+        }
+
+        // Fallback for System UI builds that do not expose navigation-bar nodes.
+        // Standard Android 3-button navigation places Back at the left sixth of the bottom bar.
+        val point = runCatching {
+            val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            val metrics = android.util.DisplayMetrics()
+            @Suppress("DEPRECATION")
+            wm.defaultDisplay.getRealMetrics(metrics)
+            val resourceId = resources.getIdentifier("navigation_bar_height", "dimen", "android")
+            val barHeight = if (resourceId != 0) resources.getDimensionPixelSize(resourceId) else (24 * resources.displayMetrics.density).toInt()
+            Pair((metrics.widthPixels / 6).coerceAtLeast(1), (metrics.heightPixels - barHeight / 2).coerceAtLeast(1))
+        }.getOrNull()
+        if (point == null) {
+            MiniMacroTrace.record(this, runId, "NAV_BAR_BACK_TAP", "FAILED", "Could not determine Android navigation-bar Back coordinates")
+            done(false)
+            return
+        }
+        MiniMacroTrace.record(this, runId, "NAV_BAR_BACK_TAP", "START", "Direct bottom navigation Back tap at (${point.first}, ${point.second})")
+        tapAt(point.first, point.second) { ok ->
+            MiniMacroTrace.record(this, runId, "NAV_BAR_BACK_TAP", if (ok) "GESTURE_SENT" else "FAILED", "Navigation Back tap gesture dispatched=$ok; dispatch does not confirm screen transition")
+            done(ok)
+        }
+    }
+
+    /** Return from Quick Settings by tapping the Android bottom navigation Back button. */
+    private fun closeShade(runId: String? = null) {
+        mainHandler.postDelayed({
+            tapNavigationBackButton(runId) { firstTapSent ->
+                mainHandler.postDelayed({
+                    val stillVisible = runCatching {
+                        windows.any { it.root?.packageName?.toString()?.contains("systemui", ignoreCase = true) == true }
+                    }.getOrDefault(false)
+                    if (stillVisible) {
+                        MiniMacroTrace.record(this, runId, "NAV_BAR_BACK_CHECK", "STILL_VISIBLE", "System UI remains visible after direct navigation-bar Back tap; no global Back fallback sent")
+                    } else {
+                        MiniMacroTrace.record(this, runId, "NAV_BAR_BACK_CHECK", if (firstTapSent) "RETURNED" else "CHECK_ONLY", "System UI no longer visible after navigation-bar Back attempt")
+                    }
+                }, 650L)
+            }
         }, 550L)
     }
 
