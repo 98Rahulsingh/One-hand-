@@ -3,6 +3,8 @@ plugins {
   alias(libs.plugins.kotlin.compose)
 }
 
+val runNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+
 android {
   namespace = "com.example"
   compileSdk = 36
@@ -11,29 +13,28 @@ android {
     applicationId = "com.sidepanel.onehand"
     minSdk = 24
     targetSdk = 28  // lets Wi-Fi and Bluetooth be switched directly (Android blocks this for newer targets)
-    versionCode = 1
-    versionName = "1.0"
+    versionCode = runNumber
+    versionName = "1.0.$runNumber"
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
-  // Release signing only when you provide a keystore (KEYSTORE_PATH, STORE_PASSWORD, KEY_PASSWORD).
-  // Debug builds use Android's default debug key, so no keystore file is needed.
-  val keystorePath: String? = System.getenv("KEYSTORE_PATH")
   signingConfigs {
-    if (keystorePath != null) {
-      create("release") {
-        storeFile = file(keystorePath)
-        storePassword = System.getenv("STORE_PASSWORD")
-        keyAlias = "upload"
-        keyPassword = System.getenv("KEY_PASSWORD")
-      }
+    getByName("debug") {
+      storeFile = file("debug.keystore")
+      storePassword = "android"
+      keyAlias = "androiddebugkey"
+      keyPassword = "android"
     }
   }
 
   buildTypes {
+    debug {
+      signingConfig = signingConfigs.getByName("debug")
+    }
     release {
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+      val keystorePath: String? = System.getenv("KEYSTORE_PATH")
       if (keystorePath != null) signingConfig = signingConfigs.getByName("release")
     }
   }
