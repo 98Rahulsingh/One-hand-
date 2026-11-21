@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -331,17 +332,6 @@ fun MainEdgePanel(
                                 )
                             }
 
-                            // Hide / Unhide Brightness, Volume & Media Sliders
-                            ,
-                                modifier = Modifier.size(26.dp).testTag("header_hide_unhide_media")
-                            ) {
-                                Icon(
-                                    imageVector = if (panelSettings.isTopMediaSectionVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                    contentDescription = if (panelSettings.isTopMediaSectionVisible) "Hide media & sliders" else "Show media & sliders",
-                                    tint = if (panelSettings.isTopMediaSectionVisible) Color(0xFF80DEEA) else Color(0xFFFFD54F),
-                                    modifier = Modifier.size(15.dp)
-                                )
-                            }
 
                             // Panel Settings
                             IconButton(
