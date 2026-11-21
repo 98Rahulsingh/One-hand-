@@ -160,6 +160,12 @@ fun AddQuickAccessModal(
                     viewModel.selectAlphabetLetter(null)
                 }, "filter_pill_apps")
                 if (pendingGesture == null && !tilesTab) {
+                    FilterPill("TRACKER", selectedAddTab == "TRACKER", {
+                        selectedAddTab = "TRACKER"
+                        viewModel.selectAlphabetLetter(null)
+                    }, "filter_pill_tracker")
+                }
+                if (pendingGesture == null && !tilesTab && selectedAddTab != "TRACKER") {
                     Spacer(Modifier.weight(1f))
                     TextButton(onClick = { newGroupMode = !newGroupMode }) {
                         Text("+ Group", color = Color(0xFF80DEEA), fontSize = 11.sp)
@@ -186,14 +192,38 @@ fun AddQuickAccessModal(
                 }
             }
 
-            if (pendingGesture == null && !tilesTab) {
+            if (pendingGesture == null && !tilesTab && selectedAddTab != "TRACKER") {
                 Text("Add to group: $target", color = Color(0xFF80DEEA), fontSize = 11.sp)
-            } else if (tilesTab) {
+            } else if (tilesTab && selectedAddTab != "TRACKER") {
                 Text("Quick Settings · Apps and Actions", color = Color(0xFF9CA3AF), fontSize = 11.sp)
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
+            if (selectedAddTab == "TRACKER" && pendingGesture == null && !tilesTab) {
+                Column(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("NAVIGATION BAR", color = Color(0xFF80DEEA), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text("Back Button Tracker", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Tracker dabayein, phir navigation bar mein Back button ki exact jagah par tap karein. X/Y save hote hi Mini-Macro usi point par tap karega.",
+                        color = Color(0xFF9CA3AF), fontSize = 11.sp, lineHeight = 15.sp)
+                    val savedBackPosition = viewModel.backButtonTargetDescription()
+                    Text(savedBackPosition?.let { "Saved position: $it" } ?: "Saved position: Not set",
+                        color = if (savedBackPosition != null) Color(0xFF80DEEA) else Color(0xFFFFCC80), fontSize = 12.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = { viewModel.startTrackBackButton() }) {
+                            Text("◎ Track Back", color = Color(0xFF00E5FF), fontSize = 12.sp)
+                        }
+                        if (savedBackPosition != null) TextButton(onClick = { viewModel.clearBackButtonTarget() }) {
+                            Text("Reset", color = Color(0xFFFFAB91), fontSize = 12.sp)
+                        }
+                        TextButton(onClick = { macroTraceText = viewModel.miniMacroTraceReport(); showMacroTrace = true }) {
+                            Text("Trace", color = Color(0xFFB2EBF2), fontSize = 12.sp)
+                        }
+                    }
+                    Text("Note: Calibration tap sirf position save karta hai. Actual Back tap agle Mini-Macro run mein hoga.",
+                        color = Color(0xFF6B7280), fontSize = 10.sp, lineHeight = 14.sp)
+                }
+            } else if (selectedAddTab != "TRACKER") {
             Row(Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxSize(),
@@ -234,9 +264,6 @@ fun AddQuickAccessModal(
                             Spacer(Modifier.weight(1f))
                             TextButton(onClick = { macroTraceText = viewModel.miniMacroTraceReport(); showMacroTrace = true }) {
                                 Text("Trace", color = Color(0xFFB2EBF2), fontSize = 10.sp)
-                            }
-                            TextButton(onClick = { viewModel.startTrackBackButton() }) {
-                                Text("Back Track", color = Color(0xFF80DEEA), fontSize = 10.sp)
                             }
                             TextButton(onClick = { showConnectivityCreator = !showConnectivityCreator }) {
                                 Text("+", color = Color(0xFF00E5FF), fontSize = 20.sp, fontWeight = FontWeight.Bold)
@@ -297,6 +324,7 @@ fun AddQuickAccessModal(
                     modifier = Modifier.padding(start = 4.dp),
                     isRightAligned = true
                 )
+            }
             }
 
             if (showMacroTrace) {

@@ -234,6 +234,16 @@ class PanelAccessibilityService : AccessibilityService() {
         mainHandler.postDelayed({ finish(null) }, 20_000L)
     }
 
+    fun backButtonTargetDescription(): String? {
+        val prefs = getSharedPreferences("mini_macro_back_target", Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("saved", false)) return null
+        return "X: ${prefs.getInt("x", -1)}   Y: ${prefs.getInt("y", -1)}"
+    }
+
+    fun clearBackButtonTarget() {
+        getSharedPreferences("mini_macro_back_target", Context.MODE_PRIVATE).edit().clear().apply()
+    }
+
     /** Opens quick settings and covers it with a see-through layer; the next press becomes the saved spot. */
     fun startTracking(done: (TapTarget?) -> Unit) {
         performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS)

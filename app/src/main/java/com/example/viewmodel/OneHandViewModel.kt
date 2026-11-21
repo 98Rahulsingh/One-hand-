@@ -880,6 +880,13 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         return "Accessibility Service: $a11y\nWRITE_SECURE_SETTINGS: $sec\n" + actions.macroStatusReport()
     }
 
+    fun backButtonTargetDescription(): String? = PanelAccessibilityService.instance?.backButtonTargetDescription()
+
+    fun clearBackButtonTarget() {
+        PanelAccessibilityService.instance?.clearBackButtonTarget()
+        showToast("Back position cleared")
+    }
+
     fun startTrackBackButton() {
         val svc = PanelAccessibilityService.instance
         if (svc == null || !perms.isAccessibilityOn()) {
