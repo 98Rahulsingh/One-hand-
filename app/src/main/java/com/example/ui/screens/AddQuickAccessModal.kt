@@ -137,7 +137,7 @@ fun AddQuickAccessModal(
 
             if (!tilesTab && selectedAddTab == "GROUPS") {
                 Text(
-                    text = "Manage groups and choose their apps",
+                    text = "Manage groups and choose apps or actions",
                     color = Color(0xFF9CA3AF),
                     fontSize = 11.sp
                 )
@@ -227,6 +227,20 @@ fun AddQuickAccessModal(
                             modifier = Modifier.testTag("group_auto_switch")
                         )
                     }
+                }
+                // Group membership supports both launchable apps and actions.
+                // The old Groups tab forced ItemType.APP, hiding every action from
+                // the group picker; expose an explicit type selector here.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    FilterPill("Apps", filterType == ItemType.APP, {
+                        viewModel.setItemFilterType(ItemType.APP)
+                    }, "group_filter_apps")
+                    FilterPill("Actions", filterType == ItemType.ACTION, {
+                        viewModel.setItemFilterType(ItemType.ACTION)
+                    }, "group_filter_actions")
                 }
                 Spacer(modifier = Modifier.height(4.dp))
             } else if (!tilesTab) {
