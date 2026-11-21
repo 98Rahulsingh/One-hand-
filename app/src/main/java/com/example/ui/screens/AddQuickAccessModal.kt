@@ -1,71 +1,59 @@
 package com.example.ui.screens
 
+import com.example.model.SPECIAL_GROUPS
+import androidx.compose.material3.Switch
+import com.example.system.AppIcons
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.foundation.Image
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.platform.LocalContext
-import com.example.system.AppIcons
-import androidx.compose.runtime.*
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.ActiveWindow
+import com.example.model.AppItem
 import com.example.model.ItemType
-import com.example.model.SPECIAL_GROUPS
 import com.example.model.isInGroup
 import com.example.ui.components.FloatingWindowCard
 import com.example.viewmodel.OneHandViewModel
-import kotlinx.coroutines.launch
-
-private val DefaultV5Groups = listOf(
-    "Recent", "Most Used", "All", "Image", "Social", "Media", "Productivity",
-    "Fresh Install", "Tool", "Video", "Music", "Google", "Work", "Browser",
-    "AI", "Communication", "Game"
-)
-
-
-private fun quickSettingIdForAction(itemId: String): String = when (itemId) {
-    "act_open_edge" -> "open_edge"
-    "act_open_quick" -> "open_quick"
-    "act_open_tools" -> "open_tools"
-    "act_open_media" -> "open_media"
-    "act_bt" -> "bluetooth"
-    else -> when {
-        itemId.startsWith("act_qs_") -> itemId.removePrefix("act_qs_")
-        itemId.startsWith("act_") -> itemId.removePrefix("act_")
-        else -> itemId
-    }
-}
-
-private val DefaultV5Actions = listOf(
-    "Edge Panel", "Quick Tool", "Media Control", "Quick Panel", "One Hand Mode",
-    "Back", "Home", "Recent", "Switch Previous", "Split Window", "Floating Window",
-    "Active App", "Torch", "Dark Mode", "Battery Saver", "Auto Brightness",
-    "Reading Mode", "Location Service", "Mobile Data", "Wi-Fi", "Hotspot",
-    "Bluetooth", "Earphone Mode"
-)
 
 @Composable
 fun AddQuickAccessModal(
@@ -73,549 +61,534 @@ fun AddQuickAccessModal(
     modifier: Modifier = Modifier
 ) {
     val masterItems by viewModel.masterItems.collectAsState()
+    val filterType by viewModel.itemFilterType.collectAsState()
+    val searchQuery by viewModel.itemSearchQuery.collectAsState()
     val panelSettings by viewModel.panelSettings.collectAsState()
     val categories by viewModel.availableCategories.collectAsState()
-    val manualGroups by viewModel.manualGroups.collectAsState()
+    val target by viewModel.addTargetGroup.collectAsState()
+    val tilesTab by viewModel.tilesTab.collectAsState()
     val groupAdded by viewModel.groupAdded.collectAsState()
     val groupRemoved by viewModel.groupRemoved.collectAsState()
+    val manualGroups by viewModel.manualGroups.collectAsState()
     val quickSettings by viewModel.quickSettings.collectAsState()
-    val tilesTab by viewModel.tilesTab.collectAsState()
-    val tileTargets by viewModel.tileTargets.collectAsState()
-    val pendingGesture by viewModel.pendingGestureToBind.collectAsState()
 
-    var activeTab by remember { mutableIntStateOf(0) } // 0=Apps, 1=Action, 2=Groups
-    var showGroupList by remember { mutableStateOf(false) }
-    var selectedGroup by remember { mutableStateOf<String?>(null) }
-    var newGroupMode by remember { mutableStateOf(false) }
+    var newGroupMode by remember { mutableStateOf(viewModel.consumeNewGroupRequest()) }
+    var selectedAddTab by remember { mutableStateOf("GROUPS") }
     var newGroupName by remember { mutableStateOf("") }
-    var newToggleName by remember { mutableStateOf("") }
-    var showNewToggle by remember { mutableStateOf(false) }
-    var activeLetter by remember { mutableStateOf<Char?>(null) }
+    var newTileName by remember { mutableStateOf("") }
+    val tileTargets by viewModel.tileTargets.collectAsState()
+    val groups = categories.filter { it !in SPECIAL_GROUPS }
 
-    val ctx = LocalContext.current
-    val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
-
-    val allGroups = remember(categories) { (DefaultV5Groups + categories).distinct() }
-    val allAppsOnly = remember(masterItems) {
-        masterItems.filter { it.type == ItemType.APP }.sortedBy { it.name.lowercase() }
+    val filteredList = remember(masterItems, filterType, searchQuery) {
+        masterItems.filter { item ->
+            val matchesType = item.type == filterType
+            val matchesQuery = searchQuery.isBlank() ||
+                item.name.contains(searchQuery, ignoreCase = true) ||
+                item.subtitle.contains(searchQuery, ignoreCase = true)
+            matchesType && matchesQuery
+        }
     }
-    // One canonical action list: merge Quick Settings tiles with Action catalog by tile ID.
-    // A tile and its matching Action are represented once, never as duplicate rows.
-    val actionItems = remember(masterItems, quickSettings) {
-        val existing = masterItems.filter { it.type == ItemType.ACTION }
-        val used = mutableSetOf<String>()
-        buildList {
-            quickSettings.filterNot { it.id.startsWith("app_") }.forEach { qs ->
-                val match = existing.firstOrNull { quickSettingIdForAction(it.id) == qs.id }
-                if (match != null) {
-                    add(match)
-                } else {
-                    add(com.example.model.AppItem(
-                        id = "act_qs_${qs.id}", name = qs.name, packageName = "",
-                        type = ItemType.ACTION, categoryName = "Tools", iconName = qs.iconName,
-                        iconColor = qs.color, isAdded = false, subtitle = qs.description
-                    ))
-                }
-                used.add(qs.id)
-            }
-            existing.filter { quickSettingIdForAction(it.id) !in used }.forEach { add(it) }
-        }.distinctBy { quickSettingIdForAction(it.id) }.sortedBy { it.name.lowercase() }
-    }
-    val allAppsAndActions = remember(masterItems, actionItems) {
-        (masterItems.filter { it.type == ItemType.APP } + actionItems).sortedBy { it.name.lowercase() }
+    val filteredTiles = remember(quickSettings, searchQuery) {
+        quickSettings.filter {
+            searchQuery.isBlank() ||
+                it.name.contains(searchQuery, ignoreCase = true) ||
+                it.description.contains(searchQuery, ignoreCase = true)
+        }
     }
 
     FloatingWindowCard(
-        title = "Add Item",
+        title = "Add Quick Access Item",
         initialGeometry = panelSettings.quickAccessGeometry,
-        onGeometryChange = { x, y, w, h -> viewModel.updateQuickAccessGeometry(x, y, w, h) },
+        onGeometryChange = { x, y, w, h ->
+            viewModel.updateQuickAccessGeometry(x, y, w, h)
+        },
         onClose = { viewModel.navigateTo(ActiveWindow.MAIN_PANEL) },
         modifier = modifier
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+                .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
-            if (pendingGesture != null) {
-                Text(
-                    text = "Target: Gesture ($pendingGesture) — tap any App or Action to bind",
-                    color = Color(0xFFFFD54F),
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    val isQs = tilesTab
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(22.dp)
-                            .clip(RoundedCornerShape(5.dp))
-                            .background(if (!isQs) Color(0xFF00BCD4) else Color(0xFF12232A))
-                            .clickable { viewModel.setTilesTab(false) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (selectedGroup != null) "To: Group ($selectedGroup)" else "To: Edge Panel",
-                            color = Color.White,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(22.dp)
-                            .clip(RoundedCornerShape(5.dp))
-                            .background(if (isQs) Color(0xFF00BCD4) else Color(0xFF12232A))
-                            .clickable { viewModel.setTilesTab(true) },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "To: Quick Settings",
-                            color = Color.White,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1
-                        )
-                    }
-                }
-            }
-            // Single horizontal top bar: Apps | Action | Groups
+            // Shared Add Item tabs: Groups, Actions and Apps. Quick Settings tiles
+            // remain available as a sub-view inside Actions rather than a fourth tab.
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                listOf("Apps", "Action", "Groups").forEachIndexed { idx, label ->
-                    val selected = activeTab == idx
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(26.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(if (selected) Color(0xFF00BCD4) else Color(0xFF12232A))
-                            .clickable {
-                                if (idx == 2) {
-                                    activeTab = 2
-                                    showGroupList = !showGroupList
-                                } else {
-                                    activeTab = idx
-                                    showGroupList = false
-                                }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (idx == 2 && selectedGroup != null) "Groups (${selectedGroup!!.take(6)})" else label,
-                            color = Color.White,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1
-                        )
-                    }
-                }
+                FilterPill("GROUPS", selectedAddTab == "GROUPS", {
+                    selectedAddTab = "GROUPS"
+                    viewModel.setTilesTab(false)
+                    viewModel.setItemFilterType(ItemType.APP)
+                }, "filter_pill_groups")
+                FilterPill("ACTIONS", selectedAddTab == "ACTIONS", {
+                    selectedAddTab = "ACTIONS"
+                    viewModel.setTilesTab(false)
+                    viewModel.setItemFilterType(ItemType.ACTION)
+                }, "filter_pill_actions")
+                FilterPill("APPS", selectedAddTab == "APPS", {
+                    selectedAddTab = "APPS"
+                    viewModel.setTilesTab(false)
+                    viewModel.setItemFilterType(ItemType.APP)
+                }, "filter_pill_apps")
             }
 
-            if (activeTab == 0) {
-                // APPS TAB with ABCD popup slider (no search bar)
-                Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        items(allAppsOnly) { item ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(28.dp)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(if (item.isAdded) Color(0xFF00BCD4).copy(alpha = 0.2f) else Color(0xFF10252C))
-                                    .clickable {
-                                    if (pendingGesture != null) {
-                                        viewModel.bindAndFinish(item)
-                                    } else if (tilesTab) {
-                                        viewModel.toggleAppInQuickSettings(item)
-                                    } else if (selectedGroup != null) {
-                                        viewModel.toggleItemInGroup(item.id, selectedGroup!!)
-                                    } else {
-                                        viewModel.toggleItemAdded(item.id)
-                                    }
-                                }
-                                    .padding(horizontal = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                                    val bmp = remember(item.packageName) {
-                                        if (item.packageName.isNotBlank()) AppIcons.get(item.packageName) else null
-                                    }
-                                    if (bmp != null) {
-                                        Image(
-                                            bitmap = bmp,
-                                            contentDescription = item.name,
-                                            modifier = Modifier.size(18.dp).clip(RoundedCornerShape(4.dp))
-                                        )
-                                    } else {
-                                        Icon(
-                                            imageVector = getIconVectorForName(item.iconName),
-                                            contentDescription = item.name,
-                                            tint = Color(0xFF00E5FF),
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(item.name, color = Color(0xFFE0F7FA), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                }
-                                val appCheck = when {
-                                    tilesTab -> quickSettings.any { it.id == "app_${item.packageName}" && it.isVisible }
-                                    selectedGroup != null -> isInGroup(item, selectedGroup!!, groupAdded, groupRemoved, manualGroups)
-                                    else -> item.isAdded
-                                }
-                                Text(if (appCheck) "✓" else "+", color = Color(0xFF00E5FF), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                    Spacer(Modifier.width(4.dp))
-                    V5AbcdRail(
-                        onLetter = { ch ->
-                            activeLetter = ch
-                            val targetIdx = allAppsOnly.indexOfFirst { it.name.startsWith(ch, ignoreCase = true) }
-                            if (targetIdx >= 0) scope.launch { listState.scrollToItem(targetIdx) }
-                        },
-                        onRelease = { activeLetter = null }
-                    )
-                }
-            } else if (activeTab == 1) {
-                // ACTIONS + QUICK TILES: one merged list, keyed by the real Quick Setting ID.
-                V5SlimSwitchRow("Hide Action Names", !panelSettings.showActionNameInList) { hide ->
-                    viewModel.updateSettings { it.copy(showActionNameInList = !hide) }
-                }
-                Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        items(actionItems, key = { quickSettingIdForAction(it.id) }) { item ->
-                            val actionKey = quickSettingIdForAction(item.id)
-                            val actionTile = quickSettings.firstOrNull { it.id == actionKey }
-                            val savedTarget = tileTargets[actionKey]
-                            val isSelected = when {
-                                pendingGesture != null -> false
-                                tilesTab -> actionTile?.isVisible == true
-                                selectedGroup != null -> isInGroup(item, selectedGroup!!, groupAdded, groupRemoved, manualGroups)
-                                else -> item.isAdded
-                            }
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(26.dp)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(if (isSelected) Color(0xFF00BCD4).copy(alpha = 0.22f) else Color(0xFF10252C))
-                                    .clickable {
-                                        when {
-                                            pendingGesture != null -> viewModel.bindActionAndFinish(item, actionKey)
-                                            tilesTab -> viewModel.toggleActionInQuickSettings(actionKey, item)
-                                            selectedGroup != null -> viewModel.toggleItemInGroup(item.id, selectedGroup!!)
-                                            else -> viewModel.toggleActionAdded(item)
-                                        }
-                                    }
-                                    .padding(horizontal = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(4.dp))
-                                            .background(Color(0xFF00BCD4).copy(alpha = 0.25f))
-                                            .clickable { viewModel.startTrackTile(actionKey) }
-                                            .padding(horizontal = 5.dp, vertical = 2.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(if (savedTarget != null) "◎" else "Track", color = Color(0xFF00E5FF), fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                    Spacer(Modifier.width(5.dp))
-                                    Icon(
-                                        imageVector = getIconVectorForName(item.iconName),
-                                        contentDescription = item.name,
-                                        tint = Color(0xFF00E5FF),
-                                        modifier = Modifier.size(15.dp)
-                                    )
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(item.name, color = Color(0xFFE0F7FA), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                }
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    if (savedTarget != null) {
-                                        Text("Reset", color = Color(0xFFFFD54F), fontSize = 8.sp, fontWeight = FontWeight.SemiBold,
-                                            modifier = Modifier.clickable { viewModel.clearTileTarget(actionKey) }.padding(horizontal = 4.dp))
-                                    }
-                                    Text(if (isSelected) "✓" else "+", color = Color(0xFF00E5FF), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-                        item {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().height(26.dp)
-                                    .clip(RoundedCornerShape(6.dp)).background(Color(0xFF122B33))
-                                    .clickable { showNewToggle = !showNewToggle }.padding(horizontal = 8.dp),
-                                contentAlignment = Alignment.CenterStart
-                            ) { Text("+ Create Toggle", color = Color(0xFF00E5FF), fontSize = 10.sp, fontWeight = FontWeight.SemiBold) }
-                        }
-                    }
-                    Spacer(Modifier.width(4.dp))
-                    V5AbcdRail(
-                        onLetter = { ch ->
-                            activeLetter = ch
-                            val idx = actionItems.indexOfFirst { it.name.startsWith(ch, ignoreCase = true) }
-                            if (idx >= 0) scope.launch { listState.scrollToItem(idx) }
-                        },
-                        onRelease = { activeLetter = null }
-                    )
-                }
-                if (showNewToggle) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(
-                            value = newToggleName,
-                            onValueChange = { newToggleName = it },
-                            placeholder = { Text("Toggle name", fontSize = 10.sp) },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
-                        )
-                        TextButton(onClick = {
-                            if (newToggleName.isNotBlank()) {
-                                viewModel.showToast("Created: $newToggleName")
-                                newToggleName = ""
-                                showNewToggle = false
-                            }
-                        }) { Text("Add", fontSize = 10.sp) }
-                    }
-                }
-            } else {
-                // GROUPS TAB: Left Auto/Manual switch, Right vertical groups list + App Name hide switch
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (!tilesTab && selectedAddTab == "GROUPS") {
+                Text(
+                    text = "Manage groups and choose apps or actions",
+                    color = Color(0xFF9CA3AF),
+                    fontSize = 11.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
                 Row(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    // Left side: Auto / Manual detection switch
-                    Column(
-                        modifier = Modifier
-                            .width(92.dp)
-                            .fillMaxHeight()
-                            .background(Color(0xFF0E1D23), RoundedCornerShape(8.dp))
-                            .padding(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text("App Detection", color = Color(0xFF80DEEA), fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
-                        val g = selectedGroup ?: "All"
-                        val isManual = g in manualGroups
-                        Switch(
-                            checked = !isManual,
-                            onCheckedChange = { auto -> viewModel.setGroupManual(g, !auto) },
-                            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Color(0xFF00BCD4))
-                        )
-                        Text(if (isManual) "Manual" else "Auto", color = Color(0xFFE0F7FA), fontSize = 10.sp)
+                    groups.forEach { g ->
+                        FilterPill(g, g == target, { viewModel.setAddTargetGroup(g) }, "target_group_$g")
                     }
-
-                    // Right side: App Name Hide/Unhide switch + vertical groups list (when showGroupList) or selected group apps
-                    Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                        V5SlimSwitchRow("Hide App Names", !panelSettings.showApkNameInGroupList) { hide ->
-                            viewModel.updateSettings { it.copy(showApkNameInGroupList = !hide) }
-                        }
-                        if (showGroupList || selectedGroup == null) {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                items(allGroups) { grp ->
-                                    val isSel = selectedGroup == grp
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(26.dp)
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(if (isSel) Color(0xFF00BCD4) else Color(0xFF10252C))
-                                            .clickable {
-                                                // Single tap selects & closes group list; re-tap deselects
-                                                selectedGroup = if (isSel) null else grp
-                                                if (!isSel) {
-                                                    if (grp !in categories) viewModel.createGroupFromWindow(grp)
-                                                    viewModel.selectCategory(grp)
-                                                    showGroupList = false
-                                                }
-                                            }
-                                            .padding(horizontal = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                imageVector = Icons.Default.Folder,
-                                                contentDescription = grp,
-                                                tint = if (isSel) Color.White else Color(0xFF00E5FF),
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                            Spacer(Modifier.width(6.dp))
-                                            Text(grp, color = Color.White, fontSize = 10.sp)
-                                        }
-                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                            if (isSel) Text("✓", color = Color.White, fontSize = 10.sp)
-                                            if (grp !in SPECIAL_GROUPS) {
-                                                Text(
-                                                    text = "🗑",
-                                                    fontSize = 10.sp,
-                                                    modifier = Modifier.clickable {
-                                                        viewModel.deleteGroup(grp)
-                                                        if (selectedGroup == grp) selectedGroup = null
-                                                    }
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                                item {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(26.dp)
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(Color(0xFF122B33))
-                                            .clickable { newGroupMode = !newGroupMode }
-                                            .padding(horizontal = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text("+ Create Group", color = Color(0xFF00E5FF), fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
-                                    }
-                                }
-                            }
-                        } else {
-                            // Selected group apps with ABCD slider
-                            Row(modifier = Modifier.fillMaxSize()) {
-                                LazyColumn(
-                                    state = listState,
-                                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
-                                    items(allAppsAndActions) { item ->
-                                        val inGrp = selectedGroup?.let { isInGroup(item, it, groupAdded, groupRemoved, manualGroups) } == true
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(26.dp)
-                                                .clip(RoundedCornerShape(6.dp))
-                                                .background(if (inGrp) Color(0xFF00BCD4).copy(alpha = 0.2f) else Color(0xFF10252C))
-                                                .clickable { selectedGroup?.let { g -> viewModel.toggleItemInGroup(item.id, g) } }
-                                                .padding(horizontal = 8.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Text(item.name, color = Color(0xFFE0F7FA), fontSize = 10.sp, maxLines = 1)
-                                            Text(if (inGrp) "✓" else "+", color = Color(0xFF00E5FF), fontSize = 10.sp)
-                                        }
-                                    }
-                                }
-                                Spacer(Modifier.width(4.dp))
-                                V5AbcdRail(
-                                    onLetter = { ch ->
-                                        activeLetter = ch
-                                        val idx = allAppsAndActions.indexOfFirst { it.name.startsWith(ch, ignoreCase = true) }
-                                        if (idx >= 0) scope.launch { listState.scrollToItem(idx) }
-                                    },
-                                    onRelease = { activeLetter = null }
-                                )
-                            }
-                        }
-                    }
+                    FilterPill("+ New group", newGroupMode, { newGroupMode = !newGroupMode }, "new_group_pill")
                 }
                 if (newGroupMode) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         OutlinedTextField(
                             value = newGroupName,
                             onValueChange = { newGroupName = it },
-                            placeholder = { Text("New group name", fontSize = 10.sp) },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true
+                            placeholder = { Text("Group name", color = Color(0xFF6B7280), fontSize = 12.sp) },
+                            singleLine = true,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(50.dp)
+                                .testTag("new_group_name_field"),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFF00E5FF),
+                                unfocusedBorderColor = Color(0xFF242C3D),
+                                focusedContainerColor = Color(0xFF141B26),
+                                unfocusedContainerColor = Color(0xFF141B26),
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
+                            )
                         )
-                        TextButton(onClick = {
-                            if (newGroupName.isNotBlank()) {
-                                viewModel.createGroupFromWindow(newGroupName.trim())
-                                selectedGroup = newGroupName.trim()
+                        TextButton(
+                            onClick = {
+                                viewModel.createGroupFromWindow(newGroupName)
                                 newGroupName = ""
                                 newGroupMode = false
-                                showGroupList = false
+                            },
+                            modifier = Modifier.testTag("create_group_button")
+                        ) {
+                            Text("Create", color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+                if (groups.contains(target)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(
+                            onClick = { viewModel.deleteGroup(target) },
+                            modifier = Modifier.testTag("delete_group_button")
+                        ) {
+                            Text("Delete group '$target'", color = Color(0xFFFF8A80), fontSize = 11.sp)
+                        }
+                    }
+                }
+                if (groups.contains(target)) {
+                    val isManual = target in manualGroups
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isManual) "Manual group" else "Auto-detect group",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = if (isManual) "Only the apps you tick below" else "Matching apps arrive by themselves",
+                                color = Color(0xFF6B7280),
+                                fontSize = 10.sp
+                            )
+                        }
+                        Switch(
+                            checked = !isManual,
+                            onCheckedChange = { viewModel.setGroupManual(target, !it) },
+                            modifier = Modifier.testTag("group_auto_switch")
+                        )
+                    }
+                }
+                // Group membership supports both launchable apps and actions.
+                // The old Groups tab forced ItemType.APP, hiding every action from
+                // the group picker; expose an explicit type selector here.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    FilterPill("Apps", filterType == ItemType.APP, {
+                        viewModel.setItemFilterType(ItemType.APP)
+                    }, "group_filter_apps")
+                    FilterPill("Actions", filterType == ItemType.ACTION, {
+                        viewModel.setItemFilterType(ItemType.ACTION)
+                    }, "group_filter_actions")
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+            } else if (!tilesTab) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Add to group", color = Color(0xFF9CA3AF), fontSize = 10.sp)
+                    Spacer(Modifier.width(8.dp))
+                    Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                        groups.forEach { group ->
+                            FilterPill(group, group == target, { viewModel.setAddTargetGroup(group) }, "target_group_$group")
+                        }
+                    }
+                }
+                if (selectedAddTab == "ACTIONS") {
+                    TextButton(onClick = { viewModel.setTilesTab(true) }) { Text("Quick Settings Tiles +", color = Color(0xFF00E5FF), fontSize = 11.sp) }
+                }
+            } else {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Quick Settings Tiles", color = Color(0xFF9CA3AF), fontSize = 11.sp)
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = { viewModel.setTilesTab(false) }) { Text("Back to Actions", color = Color(0xFF00E5FF), fontSize = 10.sp) }
+                }
+                Text(
+                    text = "Tick the tiles you want in the quick tile row",
+                    color = Color(0xFF9CA3AF),
+                    fontSize = 11.sp
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+            }
+
+            // Search Bar
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { viewModel.setItemSearchQuery(it) },
+                placeholder = {
+                    Text(
+                        text = "Search apps, shortcuts & actions...",
+                        color = Color(0xFF6B7280),
+                        fontSize = 12.sp
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search",
+                        tint = Color(0xFF9CA3AF),
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(46.dp)
+                    .testTag("quick_access_search_field"),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFF00E5FF),
+                    unfocusedBorderColor = Color(0xFF242C3D),
+                    focusedContainerColor = Color(0xFF141B26),
+                    unfocusedContainerColor = Color(0xFF141B26),
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                ),
+                singleLine = true
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (tilesTab) {
+                    item {
+                        Column(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = newTileName,
+                                    onValueChange = { newTileName = it },
+                                    placeholder = { Text("New custom tile name", color = Color(0xFF6B7280), fontSize = 12.sp) },
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1f).height(50.dp).testTag("new_tile_name_field"),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = Color(0xFF00E5FF),
+                                        unfocusedBorderColor = Color(0xFF242C3D),
+                                        focusedContainerColor = Color(0xFF141B26),
+                                        unfocusedContainerColor = Color(0xFF141B26),
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White
+                                    )
+                                )
+                                TextButton(
+                                    onClick = { viewModel.addCustomTile(newTileName); newTileName = "" },
+                                    modifier = Modifier.testTag("add_custom_tile_button")
+                                ) {
+                                    Text("Add", color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold)
+                                }
                             }
-                        }) { Text("Create", fontSize = 10.sp) }
+                            Text(
+                                text = "Make a tile, press Track icon, then press the icon in quick settings that it should tap.",
+                                color = Color(0xFF6B7280),
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                    items(filteredTiles, key = { it.id }) { tile ->
+                        Column {
+                            ChoiceRow(
+                                icon = getIconVectorForName(tile.iconName),
+                                tint = Color(tile.color),
+                                title = tile.name,
+                                subtitle = tile.description,
+                                checked = tile.isVisible,
+                                tag = "quick_tile_item_${tile.id}",
+                                onToggle = { viewModel.toggleTileVisible(tile.id) }
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val target = tileTargets[tile.id]
+                                if (target != null) {
+                                    Text(
+                                        text = "Presses: " + target.label.ifBlank { "saved spot" },
+                                        color = Color(0xFF80DEEA),
+                                        fontSize = 10.sp,
+                                        maxLines = 1,
+                                        modifier = Modifier.weight(1f).padding(start = 48.dp)
+                                    )
+                                } else {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                                TextButton(onClick = { viewModel.startTrackTile(tile.id) }) {
+                                    Text("Track icon", color = Color(0xFF00E5FF), fontSize = 11.sp)
+                                }
+                                if (target != null) {
+                                    TextButton(onClick = { viewModel.clearTileTarget(tile.id) }) {
+                                        Text("Reset", color = Color(0xFF9CA3AF), fontSize = 11.sp)
+                                    }
+                                }
+                                if (tile.id.startsWith("custom_")) {
+                                    TextButton(onClick = { viewModel.removeCustomTile(tile.id) }) {
+                                        Text("Delete", color = Color(0xFFFF8A80), fontSize = 11.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    items(filteredList, key = { it.id }) { item ->
+                        Column {
+                            QuickAccessListItem(
+                                item = item,
+                                isAdded = isInGroup(item, target, groupAdded, groupRemoved, manualGroups),
+                                onToggle = { viewModel.toggleItemInGroup(item.id, target) }
+                            )
+                            val trackId = when (item.id) {
+                                "act_wifi" -> "wifi"
+                                "act_bt" -> "bluetooth"
+                                "act_data" -> "data"
+                                "act_hotspot" -> "hotspot"
+                                "act_airplane" -> "airplane"
+                                "act_floating" -> "floating"
+                                "act_lock" -> "lock"
+                                "act_screenshot" -> "screenshot"
+                                "act_split" -> "split"
+                                "act_darkmode" -> "darkmode"
+                                "act_battery_saver" -> "battery_saver"
+                                "act_location" -> "location"
+                                "act_active_apps" -> "active_apps"
+                                "act_reading_mode" -> "reading_mode"
+                                else -> null
+                            }
+                            if (item.type == ItemType.ACTION && trackId != null) {
+                                val saved = tileTargets[trackId]
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                    TextButton(onClick = { viewModel.startTrackTile(item.id) }) {
+                                        Text(if (saved == null) "◎ Track / Target" else "◎ ${saved.label.ifBlank { "Saved target" }}", color = Color(0xFF00E5FF), fontSize = 10.sp)
+                                    }
+                                    if (saved != null) TextButton(onClick = { viewModel.clearTileTarget(trackId) }) {
+                                        Text("↻ Reset", color = Color(0xFFFFCC80), fontSize = 10.sp)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
-        }
-        activeLetter?.let { ch ->
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(34.dp)
-                    .background(Color(0xFF00BCD4), RoundedCornerShape(8.dp)),
-                contentAlignment = Alignment.Center
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
             ) {
-                Text(ch.toString(), color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                TextButton(
+                    onClick = { viewModel.navigateTo(ActiveWindow.MAIN_PANEL) },
+                    modifier = Modifier.testTag("close_add_quick_access_button")
+                ) {
+                    Text(
+                        text = "Done",
+                        color = Color(0xFF00E5FF),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
-        }
         }
     }
 }
 
 @Composable
-private fun V5SlimSwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(
+fun FilterPill(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    testTag: String
+) {
+    Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .height(24.dp)
-            .clickable { onChange(!checked) }
-            .padding(horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (isSelected) Color(0xFF28364C) else Color(0xFF19202D))
+            .border(
+                1.dp,
+                if (isSelected) Color(0xFF4C668C) else Color(0xFF263042),
+                RoundedCornerShape(16.dp)
+            )
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp, vertical = 6.dp)
+            .testTag(testTag),
+        contentAlignment = Alignment.Center
     ) {
-        Text(label, color = Color(0xFF80DEEA), fontSize = 9.sp)
-        Switch(
-            checked = checked,
-            onCheckedChange = onChange,
-            modifier = Modifier.height(18.dp),
-            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = Color(0xFF00BCD4))
+        Text(
+            text = label,
+            color = if (isSelected) Color.White else Color(0xFF9CA3AF),
+            fontSize = 11.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
         )
     }
 }
 
 @Composable
-private fun V5AbcdRail(onLetter: (Char) -> Unit, onRelease: () -> Unit) {
-    val letters = remember { ('A'..'Z').toList() }
-    Column(
+fun QuickAccessListItem(
+    item: AppItem,
+    isAdded: Boolean,
+    onToggle: () -> Unit
+) {
+    ChoiceRow(
+        icon = getIconVectorForName(item.iconName),
+        tint = Color(item.iconColor),
+        title = item.name,
+        subtitle = item.subtitle,
+        checked = isAdded,
+        tag = "quick_access_item_${item.id}",
+        onToggle = onToggle,
+        realIcon = if (item.type == ItemType.APP) AppIcons.get(item.packageName) else null
+    )
+}
+
+@Composable
+fun ChoiceRow(
+    icon: ImageVector,
+    tint: Color,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    tag: String,
+    onToggle: () -> Unit,
+    realIcon: ImageBitmap? = null
+) {
+    Row(
         modifier = Modifier
-            .width(14.dp)
-            .fillMaxHeight()
-            .background(Color(0xFF12232A), RoundedCornerShape(7.dp))
-            .pointerInput(Unit) {
-                detectVerticalDragGestures(
-                    onDragEnd = onRelease,
-                    onDragCancel = onRelease
-                ) { change, _ ->
-                    val idx = ((change.position.y / size.height) * letters.size).toInt().coerceIn(0, letters.lastIndex)
-                    onLetter(letters[idx])
-                }
-            },
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceEvenly
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .clickable { onToggle() }
+            .padding(vertical = 5.dp, horizontal = 4.dp)
+            .testTag(tag),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        letters.filterIndexed { i, _ -> i % 2 == 0 }.forEach { ch ->
-            Text(ch.toString(), color = Color(0xFF80DEEA), fontSize = 7.sp, fontWeight = FontWeight.Bold)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(tint.copy(alpha = 0.2f))
+                    .border(1.dp, tint.copy(alpha = 0.5f), RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (realIcon != null) {
+                    Image(
+                        bitmap = realIcon,
+                        contentDescription = title,
+                        modifier = Modifier.size(30.dp).clip(RoundedCornerShape(7.dp))
+                    )
+                } else {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = title,
+                        tint = tint,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Column {
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                if (subtitle.isNotBlank()) {
+                    Text(
+                        text = subtitle,
+                        color = Color(0xFF6B7280),
+                        fontSize = 10.sp
+                    )
+                }
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(if (checked) Color(0xFF00E5FF) else Color(0xFF1E2636))
+                .border(1.dp, if (checked) Color(0xFF00E5FF) else Color(0xFF333E54), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            if (checked) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Added",
+                    tint = Color(0xFF00363A),
+                    modifier = Modifier.size(14.dp)
+                )
+            }
         }
     }
 }
