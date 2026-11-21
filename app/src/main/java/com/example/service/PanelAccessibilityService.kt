@@ -190,14 +190,11 @@ class PanelAccessibilityService : AccessibilityService() {
 
     /** Lets the user mark the exact Android Back button location; saved for Mini-Macro use. */
     fun startBackButtonTracking(done: (TapTarget?) -> Unit) {
-        // Back calibration must never launch the Quick Settings tile tracker or
-        // tap the previously saved Back coordinate. Dismiss only an already-open shade.
-        val systemUiVisible = runCatching {
-            windows.any { it.root?.packageName?.toString()?.contains("systemui", ignoreCase = true) == true }
-        }.getOrDefault(false)
-        MiniMacroTrace.record(this, "BACK-CAL-${System.currentTimeMillis()}", "BACK_TRACK_START", "START", "Starting Back coordinate capture; system shade visible=$systemUiVisible")
-        if (systemUiVisible) performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE)
-        mainHandler.postDelayed({ showBackTrackLayer(done) }, if (systemUiVisible) 350L else 0L)
+        // Back calibration is independent of Quick Settings. Never inspect or
+        // control System UI here: on some OEM builds even the dismiss-shade
+        // global action can reopen/expand the Quick Settings shade.
+        MiniMacroTrace.record(this, "BACK-CAL-${System.currentTimeMillis()}", "BACK_TRACK_START", "START", "Starting Back coordinate capture only; no Quick Settings action")
+        showBackTrackLayer(done)
     }
 
     private fun showBackTrackLayer(done: (TapTarget?) -> Unit) {
