@@ -83,7 +83,7 @@ fun AddQuickAccessModal(
 
     val allGroups = remember(categories) { (DefaultV5Groups + categories).distinct() }
     val appItems = remember(masterItems, selectedGroup, groupAdded, groupRemoved, manualGroups) {
-        val baseApps = masterItems.filter { it.type == ItemType.APP }.sortedBy { it.name.lowercase() }
+        val baseApps = masterItems.filter { it.type == ItemType.APP || it.type == ItemType.ACTION }.sortedBy { it.name.lowercase() }
         val g = selectedGroup
         if (g == null || g == "All") baseApps
         else baseApps.filter { isInGroup(it, g, groupAdded, groupRemoved, manualGroups) }
@@ -202,9 +202,75 @@ fun AddQuickAccessModal(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    val actionItems = masterItems.filter { it.type == ItemType.ACTION }
-                    items(actionItems) { item ->
-                        val actName = item.name
+                    items(quickSettings) { qs ->
+                        val actName = qs.name
+                        val actionKey = qs.id
+                        val savedTarget = tileTargets[actionKey]
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(26.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (qs.isVisible) Color(0xFF00BCD4).copy(alpha = 0.22f) else Color(0xFF10252C))
+                                .clickable {
+                                    if (pendingGesture != null) {
+                                        viewModel.bindGesture(pendingGesture!!, qs.name)
+                                        viewModel.clearPendingGesture()
+                                        viewModel.showToast("${pendingGesture} → ${qs.name}")
+                                        viewModel.navigateTo(ActiveWindow.PANEL_SETTINGS)
+                                    } else {
+                                        viewModel.toggleTileVisible(qs.id)
+                                    }
+                                }
+                                .padding(horizontal = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0xFF00BCD4).copy(alpha = 0.25f))
+                                        .clickable { viewModel.startTrackTile(actionKey) }
+                                        .padding(horizontal = 5.dp, vertical = 2.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(if (savedTarget != null) "◎" else "Track", color = Color(0xFF00E5FF), fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Spacer(Modifier.width(5.dp))
+                                Icon(
+                                    imageVector = getQuickSettingIcon(qs.iconName),
+                                    contentDescription = actName,
+                                    tint = Color(0xFF00E5FF),
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = if (savedTarget != null && savedTarget.label.isNotBlank()) "$actName (${savedTarget.label})" else actName,
+                                    color = Color(0xFFE0F7FA),
+                                    fontSize = 10.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                if (savedTarget != null) {
+                                    Text(
+                                        text = "Reset",
+                                        color = Color(0xFFFFD54F),
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.clickable { viewModel.clearTileTarget(actionKey) }.padding(horizontal = 4.dp)
+                                    )
+                                }
+                                Text(if (qs.isVisible) "✓" else "+", color = Color(0xFF00E5FF), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                    if (false) {
+                        val actionItems = masterItems.filter { it.type == ItemType.ACTION }
+                        items(actionItems) { item ->
+                            val actName = item.name
                         val actionKey = actName.lowercase().replace(" ", "_").replace("-", "")
                         val savedTarget = tileTargets[actionKey]
                         Row(
@@ -255,6 +321,7 @@ fun AddQuickAccessModal(
                                 )
                             }
                         }
+                    }
                     }
                     item {
                         Box(

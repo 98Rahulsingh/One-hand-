@@ -185,7 +185,7 @@ fun OneHandApp(
             exit = fadeOut(),
             modifier = Modifier.align(if (panelSettings.isRightEdge) Alignment.CenterEnd else Alignment.CenterStart).padding(6.dp)
         ) {
-            QuickPanelScreen(viewModel = viewModel, modifier = Modifier.width(panelSettings.panelWidthDp.dp))
+            QuickPanelScreen(viewModel = viewModel, modifier = Modifier.width(panelSettings.quickPanelWidthDp.dp).height(panelSettings.quickPanelLengthDp.dp))
         }
 
         AnimatedVisibility(
@@ -194,7 +194,7 @@ fun OneHandApp(
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.Center).padding(6.dp)
         ) {
-            QuickToolsScreen(viewModel = viewModel, modifier = Modifier.width(panelSettings.quickToolWidthDp.dp))
+            QuickToolsScreen(viewModel = viewModel, modifier = Modifier.width(panelSettings.quickToolWidthDp.dp).height(panelSettings.quickToolLengthDp.dp))
         }
 
         AnimatedVisibility(
@@ -203,7 +203,7 @@ fun OneHandApp(
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.Center).padding(6.dp)
         ) {
-            MediaControlScreen(viewModel = viewModel, modifier = Modifier.width(panelSettings.mediaControlWidthDp.dp))
+            MediaControlScreen(viewModel = viewModel, modifier = Modifier.width(panelSettings.mediaControlWidthDp.dp).height(panelSettings.mediaControlLengthDp.dp))
         }
 
         // Window 2: Add Quick Access Modal (Matching Image 1)

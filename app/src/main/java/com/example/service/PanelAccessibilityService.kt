@@ -222,8 +222,20 @@ class PanelAccessibilityService : AccessibilityService() {
         if (Build.VERSION.SDK_INT >= 31) {
             performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE)
         }
-        mainHandler.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 140L)
-        mainHandler.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 340L)
+        // Swipe up from bottom-center + GLOBAL_ACTION_BACK so HyperOS/MIUI Quick Settings always closes
+        mainHandler.postDelayed({
+            val dm = resources.displayMetrics
+            val x = dm.widthPixels * 0.5f
+            val path = Path().apply {
+                moveTo(x, dm.heightPixels * 0.92f)
+                lineTo(x, dm.heightPixels * 0.30f)
+            }
+            val gesture = GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(path, 0L, 160L))
+                .build()
+            dispatchGesture(gesture, null, null)
+        }, 120L)
+        mainHandler.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 320L)
     }
 
     private fun labelOf(n: AccessibilityNodeInfo?, depth: Int): String? {
@@ -374,7 +386,7 @@ class PanelAccessibilityService : AccessibilityService() {
         val lp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT
         )
         lp.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
@@ -401,7 +413,7 @@ class PanelAccessibilityService : AccessibilityService() {
                         tryTap(labels, null, 0, done)
                     }
                 }
-            }, 340L)
+            }, 420L)
         } else {
             tryTap(labels, null, 0, done)
         }

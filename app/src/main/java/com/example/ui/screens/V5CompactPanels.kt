@@ -44,8 +44,6 @@ fun QuickPanelScreen(viewModel: OneHandViewModel, modifier: Modifier = Modifier)
     Column(
         modifier = modifier
             .offset { IntOffset(offX.roundToInt(), offY.roundToInt()) }
-            .width(panelSettings.quickPanelWidthDp.dp)
-            .heightIn(max = panelSettings.quickPanelLengthDp.dp)
             .background(Color(0xFF0A1418), RoundedCornerShape(12.dp))
             .border(0.5.dp, Color(0xFF1E4E59), RoundedCornerShape(12.dp))
             .padding(6.dp),

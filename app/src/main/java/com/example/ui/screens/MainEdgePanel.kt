@@ -156,7 +156,7 @@ fun MainEdgePanel(
         mutableFloatStateOf((screenH * panelSettings.panelHeightPercent / 100f).coerceIn(220f, screenH.toFloat()))
     }
     var currentYOffset by remember(panelSettings.verticalPosition, panelSettings.verticalOffsetDp) {
-        mutableFloatStateOf((panelSettings.verticalPosition - 5) * 32f + panelSettings.verticalOffsetDp)
+        mutableFloatStateOf((panelSettings.verticalPosition - 5) * 45f + panelSettings.verticalOffsetDp)
     }
 
     // Apps of the selected group (before the A-Z letter filter)
@@ -275,7 +275,7 @@ fun MainEdgePanel(
                 .align(if (panelSettings.isRightEdge) Alignment.CenterEnd else Alignment.CenterStart)
                 .offset {
                     val x = if (panelSettings.isRightEdge) -horizontalOffsetDp.toPx() else horizontalOffsetDp.toPx()
-                    IntOffset(x.roundToInt(), currentYOffset.roundToInt())
+                    IntOffset(x.roundToInt(), currentYOffset.dp.toPx().roundToInt())
                 }
                 .width(currentWidthDp.dp)
                 .height(currentHeightDp.dp)

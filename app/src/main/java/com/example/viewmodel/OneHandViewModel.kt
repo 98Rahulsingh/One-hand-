@@ -702,6 +702,8 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
             "open_quick" -> { navigateTo(ActiveWindow.QUICK_PANEL); togglePanel(true); return }
             "open_tools" -> { navigateTo(ActiveWindow.QUICK_TOOLS); togglePanel(true); return }
             "open_media" -> { navigateTo(ActiveWindow.MEDIA_CONTROL); togglePanel(true); return }
+            "one_hand" -> { updateSettings { it.copy(oneHandModeEnabled = !it.oneHandModeEnabled) }; return }
+            "none" -> return
         }
         if (settingId in needsCleanScreen || settingId in _tileTargets.value) {
             // These act on the app underneath, so the panel must get out of the way first
@@ -995,6 +997,15 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         fun q(id: String, name: String, icon: String, color: Long, desc: String, on: Boolean = false, visible: Boolean = true) =
             QuickSettingItem(id = id, name = name, iconName = icon, isEnabled = on, color = color, description = desc, isVisible = visible)
         return listOf(
+            q("open_quick", "Quick Panel", "tune", 0xFF00E5FF, "Open Quick Panel", false, false),
+            q("open_tools", "Quick Tool", "build", 0xFF00BCD4, "Open Quick Tools", false, false),
+            q("open_media", "Media Control", "music_note", 0xFF26C6DA, "Open Media Control", false, false),
+            q("open_edge", "Edge Panel", "apps", 0xFF4DD0E1, "Open Edge Panel", false, false),
+            q("one_hand", "One Hand Mode", "smartphone", 0xFF80DEEA, "Toggle One Hand Mode", false, false),
+            q("none", "None", "block", 0xFF64748B, "No action", false, false),
+            q("location", "Location", "location_on", 0xFF4CAF50, "Location service", false, false),
+            q("active_apps", "Active Apps", "layers", 0xFF00E5FF, "Activate apps", false, false),
+            q("reading_mode", "Reading", "menu_book", 0xFFFFB74D, "Reading mode", false, false),
             q("prev_app", "Prev App", "history", 0xFF00E5FF, "Switch to previous app", true),
             q("torch", "Torch", "flashlight_on", 0xFFFFD600, "LED torch"),
             q("rotate", "Rotate", "screen_rotation", 0xFF00E5FF, "Auto-rotate"),
