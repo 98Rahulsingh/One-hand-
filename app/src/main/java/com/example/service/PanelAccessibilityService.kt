@@ -101,14 +101,17 @@ object MiniMacroTrace {
     fun report(context: Context): String = runCatching {
         val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val arr = JSONArray(prefs.getString(LOG, "[]") ?: "[]")
-        if (arr.length() == 0) return "No mini-macro trace yet. Run a Connectivity toggle first."
-        buildString {
-            for (i in (arr.length() - 30).coerceAtLeast(0) until arr.length()) {
-                val e = arr.getJSONObject(i)
-                val time = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.getDefault()).format(java.util.Date(e.optLong("time")))
-                append(time).append(" | ").append(e.optString("run")).append(" | ")
-                    .append(e.optString("stage")).append(" | ").append(e.optString("status"))
-                    .append(" | ").append(e.optString("detail")).append('\n')
+        if (arr.length() == 0) {
+            "No mini-macro trace yet. Run a Connectivity toggle first."
+        } else {
+            buildString {
+                for (i in (arr.length() - 30).coerceAtLeast(0) until arr.length()) {
+                    val e = arr.getJSONObject(i)
+                    val time = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.getDefault()).format(java.util.Date(e.optLong("time")))
+                    append(time).append(" | ").append(e.optString("run")).append(" | ")
+                        .append(e.optString("stage")).append(" | ").append(e.optString("status"))
+                        .append(" | ").append(e.optString("detail")).append('\n')
+                }
             }
         }
     }.getOrElse { "Could not read mini-macro trace: ${it.message}" }

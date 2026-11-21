@@ -9,6 +9,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,6 +38,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -299,7 +301,8 @@ fun AddQuickAccessModal(
                     onDismissRequest = { showMacroTrace = false },
                     title = { Text("Connectivity Mini-Macro Trace") },
                     text = {
-                        Text(macroTraceText, color = Color(0xFFB2EBF2), fontSize = 10.sp, lineHeight = 13.sp)
+                        Text(macroTraceText, modifier = Modifier.height(320.dp).verticalScroll(rememberScrollState()),
+                            color = Color(0xFFB2EBF2), fontSize = 10.sp, lineHeight = 13.sp)
                     },
                     confirmButton = {
                         TextButton(onClick = { macroTraceText = viewModel.miniMacroTraceReport() }) { Text("Refresh") }

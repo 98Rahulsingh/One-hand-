@@ -814,10 +814,10 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
             togglePanel(false)
             return
         }
-        if (settingId in needsCleanScreen || settingId in _tileTargets.value) {
-            // Start one trace ID before closing the origin panel so every stage belongs to the same run.
-            val macroRunId = if (settingId in _tileTargets.value || settingId in setOf("wifi", "bluetooth", "data", "hotspot", "airplane"))
-                actions.beginMacroRun(settingId) else null
+        val isConnectivityMacro = settingId in setOf("wifi", "bluetooth", "data", "hotspot", "airplane") || settingId in _tileTargets.value
+        if (settingId in needsCleanScreen || isConnectivityMacro) {
+            // Connectivity macros always close the originating panel before opening Android Quick Settings.
+            val macroRunId = if (isConnectivityMacro) actions.beginMacroRun(settingId) else null
             togglePanel(false)
             macroRunId?.let { MiniMacroTrace.record(appContext, it, "ORIGIN_PANEL_CLOSE", if (!_isPanelOpen.value) "PASS" else "FAILED", "Quick Panel close requested; panelOpen=${_isPanelOpen.value} before $settingId") }
             viewModelScope.launch {
