@@ -591,7 +591,7 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         layout.saveSet("visibleTiles", _quickSettings.value.filter { it.isVisible }.map { it.id }.toSet())
         layout.saveList("tileOrder", _quickSettings.value.map { it.id })
         layout.saveSet("manualGroups", _manualGroups.value)
-        layout.saveList("customTiles", _quickSettings.value.filter { it.id.startsWith("custom_") }.map { it.id + "|" + it.name })
+        layout.saveList("customTiles", _quickSettings.value.filter { it.id.startsWith("custom_") || it.id.startsWith("app_") }.map { it.id + "|" + it.name })
         layout.saveMap("tileTargets", _tileTargets.value.mapValues { setOf("${it.value.x}|${it.value.y}|${it.value.label}") })
     }
 

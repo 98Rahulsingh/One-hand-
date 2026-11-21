@@ -111,13 +111,47 @@ fun AddQuickAccessModal(
                     fontSize = 9.sp,
                     fontWeight = FontWeight.SemiBold
                 )
-            } else if (selectedGroup != null) {
-                Text(
-                    text = "Target: Group ($selectedGroup) — tap Apps/Actions to add/remove",
-                    color = Color(0xFF00E5FF),
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    val isQs = tilesTab
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(22.dp)
+                            .clip(RoundedCornerShape(5.dp))
+                            .background(if (!isQs) Color(0xFF00BCD4) else Color(0xFF12232A))
+                            .clickable { viewModel.setTilesTab(false) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (selectedGroup != null) "To: Group ($selectedGroup)" else "To: Edge Panel",
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(22.dp)
+                            .clip(RoundedCornerShape(5.dp))
+                            .background(if (isQs) Color(0xFF00BCD4) else Color(0xFF12232A))
+                            .clickable { viewModel.setTilesTab(true) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "To: Quick Settings",
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1
+                        )
+                    }
+                }
             }
             // Single horizontal top bar: Apps | Action | Groups
             Row(
@@ -205,7 +239,12 @@ fun AddQuickAccessModal(
                                     Spacer(Modifier.width(6.dp))
                                     Text(item.name, color = Color(0xFFE0F7FA), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
-                                Text(if (item.isAdded) "✓" else "+", color = Color(0xFF00E5FF), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                val appCheck = when {
+                                    tilesTab -> quickSettings.any { it.id == "app_${item.packageName}" && it.isVisible }
+                                    selectedGroup != null -> isInGroup(item, selectedGroup!!, groupAdded, groupRemoved, manualGroups)
+                                    else -> item.isAdded
+                                }
+                                Text(if (appCheck) "✓" else "+", color = Color(0xFF00E5FF), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
