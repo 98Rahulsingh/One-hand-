@@ -150,6 +150,13 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
     val groupRemoved: StateFlow<Map<String, Set<String>>> = _groupRemoved.asStateFlow()
     private val _addTargetGroup = MutableStateFlow("Tools")
     val addTargetGroup: StateFlow<String> = _addTargetGroup.asStateFlow()
+    private val layoutLock = Any()
+    private val _gestureItems = MutableStateFlow(layout.loadMap("gestureItems"))
+    val gestureItems: StateFlow<Map<String, Set<String>>> = _gestureItems.asStateFlow()
+    private val _addDestination = MutableStateFlow("GROUP") // GROUP, GESTURE, QUICK_SETTINGS
+    val addDestination: StateFlow<String> = _addDestination.asStateFlow()
+    private val _selectedGesture = MutableStateFlow("Swipe Left")
+    val selectedGesture: StateFlow<String> = _selectedGesture.asStateFlow()
     private val _tilesTab = MutableStateFlow(false)
     val tilesTab: StateFlow<Boolean> = _tilesTab.asStateFlow()
     private var newGroupRequested = false
@@ -177,8 +184,11 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         actions.nameOf = { id -> _quickSettings.value.find { it.id == id }?.name ?: id }
         layout.loadList("categories")?.let { saved ->
             val oldBuiltIns = setOf("Tools", "Social", "Video", "Music", "Images", "Communication", "All", "Unused")
-            val requested = listOf("Recent", "Most Used", "Productivity", "System", "Google", "Work", "Video Player", "Image", "Games", "Casual")
-            _availableCategories.value = (requested + saved.filter { it !in oldBuiltIns && it !in requested }).distinct()
+            val cleaned = saved.filter { it !in oldBuiltIns }.distinct()
+            if (cleaned.isNotEmpty()) {
+                val base = listOf("Recent", "Most Used").filter { it !in cleaned }
+                _availableCategories.value = (base + cleaned).distinct()
+            }
         }
         _availableCategories.update { ensureBuiltIns(it) }
         layout.loadList("tileOrder")?.let { order ->
@@ -490,14 +500,17 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---- Groups, apps and quick tiles (Window 4) ----
     private fun saveLayout() {
-        layout.saveList("categories", _availableCategories.value)
-        layout.saveMap("groupAdded", _groupAdded.value)
-        layout.saveMap("groupRemoved", _groupRemoved.value)
-        layout.saveSet("visibleTiles", _quickSettings.value.filter { it.isVisible }.map { it.id }.toSet())
-        layout.saveList("tileOrder", _quickSettings.value.map { it.id })
-        layout.saveSet("manualGroups", _manualGroups.value)
-        layout.saveList("customTiles", _quickSettings.value.filter { it.id.startsWith("custom_") }.map { it.id + "|" + it.name })
-        layout.saveMap("tileTargets", _tileTargets.value.mapValues { setOf("${it.value.x}|${it.value.y}|${it.value.label}") })
+        synchronized(layoutLock) {
+            layout.saveList("categories", _availableCategories.value)
+            layout.saveMap("groupAdded", _groupAdded.value)
+            layout.saveMap("groupRemoved", _groupRemoved.value)
+            layout.saveMap("gestureItems", _gestureItems.value)
+            layout.saveSet("visibleTiles", _quickSettings.value.filter { it.isVisible }.map { it.id }.toSet())
+            layout.saveList("tileOrder", _quickSettings.value.map { it.id })
+            layout.saveSet("manualGroups", _manualGroups.value)
+            layout.saveList("customTiles", _quickSettings.value.filter { it.id.startsWith("custom_") }.map { it.id + "|" + it.name })
+            layout.saveMap("tileTargets", _tileTargets.value.mapValues { setOf("${it.value.x}|${it.value.y}|${it.value.label}") })
+        }
     }
 
     private fun firstEditableGroup(): String =
@@ -505,6 +518,7 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
 
     fun openAddWindow(forTiles: Boolean, newGroup: Boolean = false) {
         _tilesTab.value = forTiles
+        _addDestination.value = if (forTiles) "QUICK_SETTINGS" else "GROUP"
         newGroupRequested = newGroup
         val sel = _selectedCategory.value
         _addTargetGroup.value = if (sel in SPECIAL_GROUPS) firstEditableGroup() else sel
@@ -519,56 +533,106 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setAddTargetGroup(group: String) { _addTargetGroup.value = group }
     fun setTilesTab(on: Boolean) { _tilesTab.value = on }
+    fun setAddDestination(dest: String) { _addDestination.value = dest }
+    fun setSelectedGesture(gesture: String) { _selectedGesture.value = gesture }
+
+    fun toggleItemInGesture(itemId: String, gesture: String) {
+        synchronized(layoutLock) {
+            val item = _masterItems.value.find { it.id == itemId } ?: return
+            val cur = _gestureItems.value[gesture].orEmpty()
+            val updated = if (itemId in cur) cur - itemId else cur + itemId
+            _gestureItems.update { it + (gesture to updated) }
+            showToast(if (itemId in cur) "Removed '${item.name}' from $gesture" else "Added '${item.name}' to $gesture")
+            saveLayout()
+        }
+    }
 
     fun createGroupFromWindow(name: String) {
-        val t = name.trim()
-        if (t.isBlank()) return
-        createAndSelectGroup(t)
-        _manualGroups.update { it + t }
-        _addTargetGroup.value = t
-        saveLayout()
+        synchronized(layoutLock) {
+            val t = name.trim()
+            if (t.isBlank()) return
+            if (_availableCategories.value.any { it.equals(t, ignoreCase = true) }) {
+                showToast("Group '$t' already exists")
+                return
+            }
+            createAndSelectGroup(t)
+            _manualGroups.update { it + t }
+            _addTargetGroup.value = t
+            saveLayout()
+        }
     }
 
     fun deleteGroup(name: String) {
-        if (name in SPECIAL_GROUPS) return
-        _availableCategories.update { it - name }
-        _groupAdded.update { it - name }
-        _groupRemoved.update { it - name }
-        _manualGroups.update { it - name }
-        if (_selectedCategory.value == name) _selectedCategory.value = "Recent"
-        _addTargetGroup.value = firstEditableGroup()
-        showToast("Group '$name' deleted")
-        saveLayout()
+        synchronized(layoutLock) {
+            if (name in SPECIAL_GROUPS) return
+            _availableCategories.update { it - name }
+            _groupAdded.update { it - name }
+            _groupRemoved.update { it - name }
+            _manualGroups.update { it - name }
+            if (_selectedCategory.value == name) _selectedCategory.value = "Recent"
+            _addTargetGroup.value = firstEditableGroup()
+            showToast("Group '$name' deleted")
+            saveLayout()
+        }
+    }
+
+    fun renameGroup(oldName: String, newName: String) {
+        synchronized(layoutLock) {
+            val trimmed = newName.trim()
+            if (trimmed.isBlank() || oldName in SPECIAL_GROUPS || trimmed in SPECIAL_GROUPS || trimmed == oldName) return
+            if (_availableCategories.value.any { it.equals(trimmed, ignoreCase = true) }) {
+                showToast("Group '$trimmed' already exists")
+                return
+            }
+            _availableCategories.update { list -> list.map { if (it == oldName) trimmed else it } }
+            _groupAdded.update { map ->
+                if (oldName in map) (map - oldName) + (trimmed to map[oldName].orEmpty()) else map
+            }
+            _groupRemoved.update { map ->
+                if (oldName in map) (map - oldName) + (trimmed to map[oldName].orEmpty()) else map
+            }
+            _manualGroups.update { set -> if (oldName in set) (set - oldName) + trimmed else set }
+            if (_selectedCategory.value == oldName) _selectedCategory.value = trimmed
+            if (_addTargetGroup.value == oldName) _addTargetGroup.value = trimmed
+            showToast("Renamed '$oldName' to '$trimmed'")
+            saveLayout()
+        }
     }
 
     fun toggleItemInGroup(itemId: String, group: String) {
-        val item = _masterItems.value.find { it.id == itemId } ?: return
-        val member = isInGroup(item, group, _groupAdded.value, _groupRemoved.value, _manualGroups.value)
-        val add = _groupAdded.value[group].orEmpty()
-        val rem = _groupRemoved.value[group].orEmpty()
-        if (member) {
-            _groupAdded.update { it + (group to (add - itemId)) }
-            _groupRemoved.update { it + (group to (rem + itemId)) }
-            showToast("Removed '${item.name}' from $group")
-        } else {
-            _groupAdded.update { it + (group to (add + itemId)) }
-            _groupRemoved.update { it + (group to (rem - itemId)) }
-            showToast("Added '${item.name}' to $group")
+        synchronized(layoutLock) {
+            val item = _masterItems.value.find { it.id == itemId } ?: return
+            val member = isInGroup(item, group, _groupAdded.value, _groupRemoved.value, _manualGroups.value)
+            val add = _groupAdded.value[group].orEmpty()
+            val rem = _groupRemoved.value[group].orEmpty()
+            if (member) {
+                _groupAdded.update { it + (group to (add - itemId)) }
+                _groupRemoved.update { it + (group to (rem + itemId)) }
+                showToast("Removed '${item.name}' from $group")
+            } else {
+                _groupAdded.update { it + (group to (add + itemId)) }
+                _groupRemoved.update { it + (group to (rem - itemId)) }
+                showToast("Added '${item.name}' to $group")
+            }
+            saveLayout()
         }
-        saveLayout()
     }
 
     fun toggleTileVisible(id: String) {
-        _quickSettings.update { l -> l.map { if (it.id == id) it.copy(isVisible = !it.isVisible) else it } }
-        saveLayout()
+        synchronized(layoutLock) {
+            _quickSettings.update { l -> l.map { if (it.id == id) it.copy(isVisible = !it.isVisible) else it } }
+            saveLayout()
+        }
     }
 
     private fun ensureBuiltIns(list: List<String>): List<String> = list.distinct()
 
     fun setGroupManual(group: String, manual: Boolean) {
-        _manualGroups.update { if (manual) it + group else it - group }
-        showToast(if (manual) "'$group': only apps you pick" else "'$group': apps arrive automatically")
-        saveLayout()
+        synchronized(layoutLock) {
+            _manualGroups.update { if (manual) it + group else it - group }
+            showToast(if (manual) "'$group': only items you pick" else "'$group': items arrive automatically")
+            saveLayout()
+        }
     }
 
     // ---- Long-press reorder of group tabs and quick tiles ----
@@ -644,29 +708,39 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---- Custom tiles and "Track icon" ----
     fun addCustomTile(name: String) {
-        val t = name.trim()
-        if (t.isBlank()) return
-        val item = QuickSettingItem(
-            id = "custom_" + System.currentTimeMillis(), name = t, iconName = "custom", isEnabled = false,
-            color = 0xFF80DEEA, description = "Custom tile. Tap Track icon to choose what it presses", isVisible = true
-        )
-        _quickSettings.update { it + item }
-        saveLayout()
-        showToast("Tile '$t' added. Now tap Track icon")
+        synchronized(layoutLock) {
+            val t = name.trim()
+            if (t.isBlank()) return
+            if (_quickSettings.value.any { it.name.equals(t, ignoreCase = true) }) {
+                showToast("Tile '$t' already exists")
+                return
+            }
+            val item = QuickSettingItem(
+                id = "custom_" + System.currentTimeMillis(), name = t, iconName = "custom", isEnabled = false,
+                color = 0xFF80DEEA, description = "Custom tile. Tap Track icon to choose what it presses", isVisible = true
+            )
+            _quickSettings.update { it + item }
+            saveLayout()
+            showToast("Tile '$t' added. Now tap Track icon")
+        }
     }
 
     fun removeCustomTile(id: String) {
-        _quickSettings.update { l -> l.filter { it.id != id } }
-        _tileTargets.update { it - id }
-        actions.targets = _tileTargets.value
-        saveLayout()
+        synchronized(layoutLock) {
+            _quickSettings.update { l -> l.filter { it.id != id } }
+            _tileTargets.update { it - id }
+            actions.targets = _tileTargets.value
+            saveLayout()
+        }
     }
 
     fun clearTileTarget(id: String) {
-        _tileTargets.update { it - id }
-        actions.targets = _tileTargets.value
-        saveLayout()
-        showToast("Back to the built-in action")
+        synchronized(layoutLock) {
+            _tileTargets.update { it - id }
+            actions.targets = _tileTargets.value
+            saveLayout()
+            showToast("Back to the built-in action")
+        }
     }
 
     /** Opens quick settings; the next icon you press there becomes what this tile presses. */
@@ -681,9 +755,11 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         svc.startTracking { t ->
             _suspended.value = false
             if (t != null) {
-                _tileTargets.update { it + (id to t) }
-                actions.targets = _tileTargets.value
-                saveLayout()
+                synchronized(layoutLock) {
+                    _tileTargets.update { it + (id to t) }
+                    actions.targets = _tileTargets.value
+                    saveLayout()
+                }
                 showToast("Saved. This tile now presses " + (if (t.label.isBlank()) "that spot" else "'${t.label}'"))
             } else {
                 showToast("No icon was pressed")
