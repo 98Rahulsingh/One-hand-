@@ -541,20 +541,33 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         saveLayout()
     }
 
+    @Synchronized
     fun toggleItemInGroup(itemId: String, group: String) {
-        val item = _masterItems.value.find { it.id == itemId } ?: return
-        val member = isInGroup(item, group, _groupAdded.value, _groupRemoved.value, _manualGroups.value)
-        val add = _groupAdded.value[group].orEmpty()
-        val rem = _groupRemoved.value[group].orEmpty()
-        if (member) {
-            _groupAdded.update { it + (group to (add - itemId)) }
-            _groupRemoved.update { it + (group to (rem + itemId)) }
+        val item = _masterItems.value.firstOrNull { it.id == itemId } ?: return
+        if (group.isBlank() || group in SPECIAL_GROUPS) return
+
+        // Read both maps at click time. Do not capture stale sets outside update
+        // lambdas: quick repeated taps could otherwise overwrite a newer choice.
+        val addedNow = _groupAdded.value
+        val removedNow = _groupRemoved.value
+        val wasMember = isInGroup(item, group, addedNow, removedNow, _manualGroups.value)
+        val nextAdded = addedNow.toMutableMap()
+        val nextRemoved = removedNow.toMutableMap()
+        val groupAddedNow = addedNow[group].orEmpty()
+        val groupRemovedNow = removedNow[group].orEmpty()
+
+        if (wasMember) {
+            nextAdded[group] = groupAddedNow - itemId
+            nextRemoved[group] = groupRemovedNow + itemId
             showToast("Removed '${item.name}' from $group")
         } else {
-            _groupAdded.update { it + (group to (add + itemId)) }
-            _groupRemoved.update { it + (group to (rem - itemId)) }
+            nextAdded[group] = groupAddedNow + itemId
+            nextRemoved[group] = groupRemovedNow - itemId
             showToast("Added '${item.name}' to $group")
         }
+
+        _groupAdded.value = nextAdded
+        _groupRemoved.value = nextRemoved
         saveLayout()
     }
 
