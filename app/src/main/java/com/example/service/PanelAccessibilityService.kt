@@ -337,22 +337,18 @@ class PanelAccessibilityService : AccessibilityService() {
     /** 1. open quick settings  2. press the tile  3. close it. Done as fast as the phone's animation allows. */
     fun tapQuickTile(labels: List<String>, target: TapTarget? = null, done: (Boolean) -> Unit) {
         performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS)
-        if (target != null) {
-            // Wait for the shade animation before using the saved screen point.
-            // If the first coordinate tap is rejected, keep the target while
-            // searching accessible tile labels so the final coordinate fallback
-            // is still available (the old code accidentally discarded it).
+        if (target != null && labels.isEmpty()) {
+            // Custom tiles without a semantic label can only use their saved point.
             mainHandler.postDelayed({
                 tapAt(target.x, target.y) { ok ->
-                    if (ok || labels.isEmpty()) {
-                        mainHandler.postDelayed({ closeShade(); done(ok) }, 90L)
-                    } else {
-                        tryTap(labels, target, 0, done)
-                    }
+                    mainHandler.postDelayed({ closeShade(); done(ok) }, 120L)
                 }
-            }, 650L)
+            }, 850L)
         } else {
-            tryTap(labels, null, 0, done)
+            // Prefer the live accessibility node: saved coordinates can shift
+            // when Quick Settings is expanded, scrolled, or laid out differently.
+            // Keep the saved point as a final fallback for OEM tiles without labels.
+            mainHandler.postDelayed({ tryTap(labels, target, 0, done) }, 850L)
         }
     }
 
