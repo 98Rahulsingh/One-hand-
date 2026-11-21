@@ -124,7 +124,7 @@ class QuickActions(private val ctx: Context, private val perms: PermissionsManag
 
     private fun performInner(id: String): ActionResult = try {
         val tapped = targets[id]
-        if (tapped != null) return viaShade(nameOf(id), listOfNotNull(tapped.label.takeIf { it.isNotBlank() }), tapped) else when (id) {
+        if (tapped != null) viaShade(nameOf(id), listOfNotNull(tapped.label.takeIf { it.isNotBlank() }), tapped) else when (id) {
             "torch" -> torch()
             "rotate" -> rotate()
             "darkmode" -> secureFlip("Dark mode", "ui_night_mode", off = 1, on = 2, global = false)
