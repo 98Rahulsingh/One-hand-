@@ -541,6 +541,27 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         saveLayout()
     }
 
+    fun renameGroup(oldName: String, newName: String) {
+        val trimmed = newName.trim()
+        if (trimmed.isBlank() || oldName in SPECIAL_GROUPS || trimmed in SPECIAL_GROUPS || trimmed == oldName) return
+        if (_availableCategories.value.contains(trimmed)) {
+            showToast("Group '$trimmed' already exists")
+            return
+        }
+        _availableCategories.update { list -> list.map { if (it == oldName) trimmed else it } }
+        _groupAdded.update { map ->
+            if (oldName in map) (map - oldName) + (trimmed to map[oldName].orEmpty()) else map
+        }
+        _groupRemoved.update { map ->
+            if (oldName in map) (map - oldName) + (trimmed to map[oldName].orEmpty()) else map
+        }
+        _manualGroups.update { set -> if (oldName in set) (set - oldName) + trimmed else set }
+        if (_selectedCategory.value == oldName) _selectedCategory.value = trimmed
+        if (_addTargetGroup.value == oldName) _addTargetGroup.value = trimmed
+        showToast("Renamed '$oldName' to '$trimmed'")
+        saveLayout()
+    }
+
     fun toggleItemInGroup(itemId: String, group: String) {
         val item = _masterItems.value.find { it.id == itemId } ?: return
         val member = isInGroup(item, group, _groupAdded.value, _groupRemoved.value, _manualGroups.value)
