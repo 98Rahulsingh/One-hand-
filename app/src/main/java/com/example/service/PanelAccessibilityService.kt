@@ -456,24 +456,22 @@ class PanelAccessibilityService : AccessibilityService() {
     fun tapQuickTile(labels: List<String>, target: TapTarget? = null, runId: String? = null, done: (Boolean) -> Unit) {
         val opened = performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS)
         MiniMacroTrace.record(this, runId, "QUICK_SETTINGS_OPEN", if (opened) "REQUESTED" else "FAILED", "Global Quick Settings action accepted=$opened")
-        if (target != null) {
-            mainHandler.postDelayed({
-                val visible = runCatching { windows.any { it.root?.packageName?.toString()?.contains("systemui", true) == true } }.getOrDefault(false)
-                MiniMacroTrace.record(this, runId, "QUICK_SETTINGS_VISIBLE", if (visible) "PASS" else "WARNING", "System UI window visible=$visible; waited 500ms")
-                MiniMacroTrace.record(this, runId, "COORDINATE_TAP", "START", "Dispatching tap at (${target.x}, ${target.y})")
-                tapAt(target.x, target.y) { ok ->
-                    MiniMacroTrace.record(this, runId, "COORDINATE_TAP", if (ok) "PASS" else "FAILED", "dispatchGesture completed=$ok at (${target.x}, ${target.y})")
-                    if (ok || labels.isEmpty()) {
-                        mainHandler.postDelayed({ closeShade(runId); done(ok) }, 240L)
-                    } else {
-                        tryTap(labels, null, 0, runId, done)
-                    }
-                }
-            }, 500L)
-        } else {
-            MiniMacroTrace.record(this, runId, "COORDINATE_TAP", "SKIPPED", "No saved target; attempting accessibility label lookup: ${labels.joinToString()}")
-            tryTap(labels, null, 0, runId, done)
-        }
+        // Always locate and click the live System UI tile first. A tracked point can become
+        // stale when Quick Settings changes layout, expands, or shifts between sessions.
+        // Keep the saved point only as a last-resort fallback after Accessibility lookup.
+        mainHandler.postDelayed({
+            val systemUiWindows = runCatching {
+                windows.filter { it.root?.packageName?.toString()?.contains("systemui", true) == true }
+            }.getOrDefault(emptyList())
+            val visible = systemUiWindows.isNotEmpty()
+            val bounds = Rect()
+            systemUiWindows.firstOrNull()?.getBoundsInScreen(bounds)
+            MiniMacroTrace.record(this, runId, "QUICK_SETTINGS_VISIBLE", if (visible) "PASS" else "WARNING",
+                "System UI window visible=$visible; waited 650ms; display=${resources.displayMetrics.widthPixels}x${resources.displayMetrics.heightPixels}; window=$bounds")
+            MiniMacroTrace.record(this, runId, "ACCESSIBILITY_LABEL_TAP", "START",
+                "Searching live tile labels first: ${labels.joinToString()}; saved coordinate fallback=${target?.let { "${it.x},${it.y}" } ?: "none"}")
+            tryTap(labels, target, 0, runId, done)
+        }, 650L)
     }
 
     private fun tryTap(labels: List<String>, target: TapTarget?, attempt: Int, runId: String?, done: (Boolean) -> Unit) {
