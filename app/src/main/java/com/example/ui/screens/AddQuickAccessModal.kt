@@ -34,6 +34,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -74,7 +75,10 @@ fun AddQuickAccessModal(
     val pendingGesture by viewModel.pendingGestureToBind.collectAsState()
 
     var newGroupMode by remember { mutableStateOf(viewModel.consumeNewGroupRequest()) }
-    var selectedAddTab by remember { mutableStateOf(if (tilesTab || pendingGesture != null) "ACTIONS" else "GROUPS") }
+    var selectedAddTab by remember(tilesTab, pendingGesture) { mutableStateOf(if (tilesTab || pendingGesture != null) "ACTIONS" else "GROUPS") }
+    LaunchedEffect(tilesTab, pendingGesture) {
+        viewModel.setItemFilterType(if (tilesTab || pendingGesture != null) ItemType.ACTION else ItemType.APP)
+    }
     var newGroupName by remember { mutableStateOf("") }
     var newTileName by remember { mutableStateOf("") }
     val tileTargets by viewModel.tileTargets.collectAsState()
@@ -100,7 +104,7 @@ fun AddQuickAccessModal(
         masterItems.filter { it.type == ItemType.ACTION }.forEach { item ->
             byTileId[tileIdFor(item)] = item
         }
-        quickSettings.filter { !it.id.startsWith("app_") }.forEach { tile ->
+        quickSettings.filter { !it.id.startsWith("app_") && it.id != "none" }.forEach { tile ->
             if (tile.id !in byTileId) {
                 byTileId[tile.id] = AppItem(
                     id = "act_qs_${tile.id}", name = tile.name, packageName = "",
@@ -114,14 +118,14 @@ fun AddQuickAccessModal(
                 item.subtitle.contains(searchQuery, ignoreCase = true)
         }
     }
-    val filteredList = remember(masterItems, unifiedActions, filterType, searchQuery, pendingGesture) {
-        if (filterType == ItemType.ACTION || pendingGesture != null) unifiedActions else masterItems.filter { item ->
+    val filteredList = remember(masterItems, unifiedActions, filterType, searchQuery) {
+        if (filterType == ItemType.ACTION) unifiedActions else masterItems.filter { item ->
             item.type == filterType && (searchQuery.isBlank() ||
                 item.name.contains(searchQuery, ignoreCase = true) ||
                 item.subtitle.contains(searchQuery, ignoreCase = true))
         }
     }
-    val filteredTiles = remember(unifiedActions) { unifiedActions }
+
 
     FloatingWindowCard(
         title = "Add Quick Access Item",
@@ -137,32 +141,31 @@ fun AddQuickAccessModal(
                 .fillMaxSize()
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
-            // Shared Add Item tabs: Groups, Actions and Apps. Quick Settings tiles
-            // remain available as a sub-view inside Actions rather than a fourth tab.
+            // One shared Apps + Actions catalogue for all three destinations.
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                FilterPill("GROUPS", selectedAddTab == "GROUPS", {
-                    selectedAddTab = "GROUPS"
-                    viewModel.setTilesTab(false)
-                    viewModel.setItemFilterType(ItemType.APP)
-                }, "filter_pill_groups")
+                if (!tilesTab && pendingGesture == null) {
+                    FilterPill("GROUPS", selectedAddTab == "GROUPS", {
+                        selectedAddTab = "GROUPS"
+                        viewModel.setItemFilterType(ItemType.APP)
+                    }, "filter_pill_groups")
+                }
                 FilterPill("ACTIONS", selectedAddTab == "ACTIONS", {
                     selectedAddTab = "ACTIONS"
-                    viewModel.setTilesTab(false)
                     viewModel.setItemFilterType(ItemType.ACTION)
                 }, "filter_pill_actions")
                 FilterPill("APPS", selectedAddTab == "APPS", {
                     selectedAddTab = "APPS"
-                    viewModel.setTilesTab(false)
                     viewModel.setItemFilterType(ItemType.APP)
                 }, "filter_pill_apps")
             }
 
+
             Spacer(modifier = Modifier.height(8.dp))
             if (pendingGesture != null) {
-                Text("Choose an action for: $pendingGesture", color = Color(0xFF80DEEA), fontSize = 11.sp)
+                Text("Choose an app or action for: $pendingGesture", color = Color(0xFF80DEEA), fontSize = 11.sp)
                 Spacer(modifier = Modifier.height(4.dp))
             }
 
@@ -174,9 +177,7 @@ fun AddQuickAccessModal(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     groups.forEach { g ->
@@ -186,119 +187,55 @@ fun AddQuickAccessModal(
                 }
                 if (newGroupMode) {
                     Spacer(modifier = Modifier.height(6.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(
-                            value = newGroupName,
-                            onValueChange = { newGroupName = it },
+                            value = newGroupName, onValueChange = { newGroupName = it },
                             placeholder = { Text("Group name", color = Color(0xFF6B7280), fontSize = 12.sp) },
-                            singleLine = true,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(50.dp)
-                                .testTag("new_group_name_field"),
+                            singleLine = true, modifier = Modifier.weight(1f).height(50.dp).testTag("new_group_name_field"),
                             shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF00E5FF),
-                                unfocusedBorderColor = Color(0xFF242C3D),
-                                focusedContainerColor = Color(0xFF141B26),
-                                unfocusedContainerColor = Color(0xFF141B26),
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
+                                focusedBorderColor = Color(0xFF00E5FF), unfocusedBorderColor = Color(0xFF242C3D),
+                                focusedContainerColor = Color(0xFF141B26), unfocusedContainerColor = Color(0xFF141B26),
+                                focusedTextColor = Color.White, unfocusedTextColor = Color.White
                             )
                         )
-                        TextButton(
-                            onClick = {
-                                viewModel.createGroupFromWindow(newGroupName)
-                                newGroupName = ""
-                                newGroupMode = false
-                            },
-                            modifier = Modifier.testTag("create_group_button")
-                        ) {
+                        TextButton(onClick = {
+                            viewModel.createGroupFromWindow(newGroupName); newGroupName = ""; newGroupMode = false
+                        }, modifier = Modifier.testTag("create_group_button")) {
                             Text("Create", color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold)
                         }
                     }
                 }
                 if (groups.contains(target)) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        TextButton(
-                            onClick = { viewModel.deleteGroup(target) },
-                            modifier = Modifier.testTag("delete_group_button")
-                        ) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = { viewModel.deleteGroup(target) }, modifier = Modifier.testTag("delete_group_button")) {
                             Text("Delete group '$target'", color = Color(0xFFFF8A80), fontSize = 11.sp)
                         }
                     }
-                }
-                if (groups.contains(target)) {
                     val isManual = target in manualGroups
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = if (isManual) "Manual group" else "Auto-detect group",
-                                color = Color.White,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Text(
-                                text = if (isManual) "Only the apps you tick below" else "Matching apps arrive by themselves",
-                                color = Color(0xFF6B7280),
-                                fontSize = 10.sp
-                            )
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column(Modifier.weight(1f)) {
+                            Text(if (isManual) "Manual group" else "Auto-detect group", color = Color.White,
+                                fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            Text(if (isManual) "Only the apps you tick below" else "Matching apps arrive by themselves",
+                                color = Color(0xFF6B7280), fontSize = 10.sp)
                         }
-                        Switch(
-                            checked = !isManual,
-                            onCheckedChange = { viewModel.setGroupManual(target, !it) },
-                            modifier = Modifier.testTag("group_auto_switch")
-                        )
+                        Switch(checked = !isManual, onCheckedChange = { viewModel.setGroupManual(target, !it) },
+                            modifier = Modifier.testTag("group_auto_switch"))
                     }
                 }
-                // Group membership supports both launchable apps and actions.
-                // The old Groups tab forced ItemType.APP, hiding every action from
-                // the group picker; expose an explicit type selector here.
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    FilterPill("Apps", filterType == ItemType.APP, {
-                        viewModel.setItemFilterType(ItemType.APP)
-                    }, "group_filter_apps")
-                    FilterPill("Actions", filterType == ItemType.ACTION || pendingGesture != null, {
-                        viewModel.setItemFilterType(ItemType.ACTION)
-                    }, "group_filter_actions")
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterPill("Apps", filterType == ItemType.APP, { viewModel.setItemFilterType(ItemType.APP) }, "group_filter_apps")
+                    FilterPill("Actions", filterType == ItemType.ACTION, { viewModel.setItemFilterType(ItemType.ACTION) }, "group_filter_actions")
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-            } else if (!tilesTab && pendingGesture == null) {
+            } else if (tilesTab && pendingGesture == null) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Add to group", color = Color(0xFF9CA3AF), fontSize = 10.sp)
-                    Spacer(Modifier.width(8.dp))
-                    Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        groups.forEach { group ->
-                            FilterPill(group, group == target, { viewModel.setAddTargetGroup(group) }, "target_group_$group")
-                        }
-                    }
-                }
-                if (selectedAddTab == "ACTIONS") {
-                    TextButton(onClick = { viewModel.setTilesTab(true) }) { Text("Quick Settings Tiles +", color = Color(0xFF00E5FF), fontSize = 11.sp) }
-                }
-            } else {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Quick Settings Tiles", color = Color(0xFF9CA3AF), fontSize = 11.sp)
+                    Text("Quick Settings", color = Color(0xFF9CA3AF), fontSize = 11.sp)
                     Spacer(Modifier.weight(1f))
-                    TextButton(onClick = { viewModel.setTilesTab(false) }) { Text("Back to Actions", color = Color(0xFF00E5FF), fontSize = 10.sp) }
                 }
-                Text(
-                    text = "Tick the tiles you want in the quick tile row",
-                    color = Color(0xFF9CA3AF),
-                    fontSize = 11.sp
-                )
-                Spacer(modifier = Modifier.height(6.dp))
+                Text("Choose Apps or Actions below. Each item appears only once.", color = Color(0xFF9CA3AF), fontSize = 10.sp)
             }
 
             // Search Bar
@@ -339,111 +276,79 @@ fun AddQuickAccessModal(
             Spacer(modifier = Modifier.height(10.dp))
 
             LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
+                modifier = Modifier.weight(1f).fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (tilesTab) {
-                    item {
-                        Column(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
+                if (tilesTab && pendingGesture == null) {
+                    item(key = "custom_tile_creator") {
+                        Column(Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedTextField(
-                                    value = newTileName,
-                                    onValueChange = { newTileName = it },
+                                    value = newTileName, onValueChange = { newTileName = it },
                                     placeholder = { Text("New custom tile name", color = Color(0xFF6B7280), fontSize = 12.sp) },
-                                    singleLine = true,
-                                    modifier = Modifier.weight(1f).height(50.dp).testTag("new_tile_name_field"),
+                                    singleLine = true, modifier = Modifier.weight(1f).height(50.dp).testTag("new_tile_name_field"),
                                     shape = RoundedCornerShape(12.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = Color(0xFF00E5FF),
-                                        unfocusedBorderColor = Color(0xFF242C3D),
-                                        focusedContainerColor = Color(0xFF141B26),
-                                        unfocusedContainerColor = Color(0xFF141B26),
-                                        focusedTextColor = Color.White,
-                                        unfocusedTextColor = Color.White
+                                        focusedBorderColor = Color(0xFF00E5FF), unfocusedBorderColor = Color(0xFF242C3D),
+                                        focusedContainerColor = Color(0xFF141B26), unfocusedContainerColor = Color(0xFF141B26),
+                                        focusedTextColor = Color.White, unfocusedTextColor = Color.White
                                     )
                                 )
-                                TextButton(
-                                    onClick = { viewModel.addCustomTile(newTileName); newTileName = "" },
-                                    modifier = Modifier.testTag("add_custom_tile_button")
-                                ) {
+                                TextButton(onClick = { viewModel.addCustomTile(newTileName); newTileName = "" },
+                                    modifier = Modifier.testTag("add_custom_tile_button")) {
                                     Text("Add", color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold)
                                 }
                             }
-                            Text(
-                                text = "Actions and Quick Tiles are one list. Track icon to choose what a tile should tap.",
-                                color = Color(0xFF6B7280),
-                                fontSize = 10.sp
-                            )
                         }
                     }
-                    items(filteredTiles, key = { it.id }) { item ->
-                        val tileId = tileIdFor(item)
-                        val tile = quickSettings.firstOrNull { it.id == tileId }
-                        val saved = tileTargets[tileId]
-                        Column {
-                            QuickAccessListItem(
-                                item = item,
-                                isAdded = tile?.isVisible == true,
-                                onToggle = {
-                                    if (tile != null) viewModel.toggleTileVisible(tileId)
-                                    else viewModel.toggleActionInQuickSettings(tileId, item)
-                                }
-                            )
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                if (saved != null) {
-                                    Text("Presses: " + saved.label.ifBlank { "saved spot" }, color = Color(0xFF80DEEA),
-                                        fontSize = 10.sp, maxLines = 1, modifier = Modifier.weight(1f).padding(start = 48.dp))
-                                } else Spacer(Modifier.weight(1f))
-                                TextButton(onClick = { viewModel.startTrackTile(tileId) }) {
-                                    Text("Track icon", color = Color(0xFF00E5FF), fontSize = 11.sp)
-                                }
-                                if (saved != null) TextButton(onClick = { viewModel.clearTileTarget(tileId) }) {
-                                    Text("Reset", color = Color(0xFF9CA3AF), fontSize = 11.sp)
-                                }
-                                if (tileId.startsWith("custom_")) TextButton(onClick = { viewModel.removeCustomTile(tileId) }) {
-                                    Text("Delete", color = Color(0xFFFF8A80), fontSize = 11.sp)
-                                }
+                }
+                items(filteredList, key = { it.id }) { item ->
+                    val actionTileId = if (item.type == ItemType.ACTION) tileIdFor(item) else null
+                    val appTileId = if (item.type == ItemType.APP) "app_${item.packageName}" else null
+                    val quickSetting = when {
+                        actionTileId != null -> quickSettings.firstOrNull { it.id == actionTileId }
+                        appTileId != null -> quickSettings.firstOrNull { it.id == appTileId }
+                        else -> null
+                    }
+                    val added = when {
+                        pendingGesture != null -> false
+                        tilesTab -> quickSetting?.isVisible == true
+                        selectedAddTab == "GROUPS" -> isInGroup(item, target, groupAdded, groupRemoved, manualGroups)
+                        else -> item.isAdded
+                    }
+                    Column {
+                        QuickAccessListItem(item = item, isAdded = added, onToggle = {
+                            when {
+                                pendingGesture != null && item.type == ItemType.ACTION ->
+                                    viewModel.bindActionAndFinish(item, actionTileId ?: item.id)
+                                pendingGesture != null -> viewModel.bindAndFinish(item)
+                                tilesTab && item.type == ItemType.ACTION ->
+                                    viewModel.toggleActionInQuickSettings(actionTileId ?: item.id, item)
+                                tilesTab && item.type == ItemType.APP -> viewModel.toggleAppInQuickSettings(item)
+                                selectedAddTab == "GROUPS" -> viewModel.toggleItemInGroup(item.id, target)
+                                item.type == ItemType.ACTION -> viewModel.toggleActionAdded(item)
+                                else -> viewModel.toggleItemAdded(item.id)
                             }
-                        }
-                    }
-                } else {
-                    items(filteredList, key = { it.id }) { item ->
-                        Column {
-                            val actionTileId = if (item.type == ItemType.ACTION) tileIdFor(item) else null
-                            QuickAccessListItem(
-                                item = item,
-                                isAdded = if (pendingGesture != null) false
-                                    else isInGroup(item, target, groupAdded, groupRemoved, manualGroups),
-                                onToggle = {
-                                    when {
-                                        pendingGesture != null && item.type == ItemType.ACTION ->
-                                            viewModel.bindActionAndFinish(item, actionTileId ?: item.id)
-                                        item.type == ItemType.ACTION -> viewModel.toggleItemInGroup(item.id, target)
-                                        else -> viewModel.toggleItemInGroup(item.id, target)
-                                    }
+                        })
+                        if (tilesTab && item.type == ItemType.ACTION && actionTileId != null) {
+                            val saved = tileTargets[actionTileId]
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                if (saved != null) Text("Target: ${saved.label.ifBlank { "saved spot" }}", color = Color(0xFF80DEEA),
+                                    fontSize = 10.sp, modifier = Modifier.weight(1f).padding(start = 48.dp))
+                                else Spacer(Modifier.weight(1f))
+                                TextButton(onClick = { viewModel.startTrackTile(actionTileId) }) {
+                                    Text("Track", color = Color(0xFF00E5FF), fontSize = 11.sp)
                                 }
-                            )
-                            if (item.type == ItemType.ACTION && actionTileId != null) {
-                                val saved = tileTargets[actionTileId]
-                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                    TextButton(onClick = { viewModel.startTrackTile(actionTileId) }) {
-                                        Text(if (saved == null) "◎ Track / Target" else "◎ ${saved.label.ifBlank { "Saved target" }}", color = Color(0xFF00E5FF), fontSize = 10.sp)
-                                    }
-                                    if (saved != null) TextButton(onClick = { viewModel.clearTileTarget(actionTileId) }) {
-                                        Text("↻ Reset", color = Color(0xFFFFCC80), fontSize = 10.sp)
-                                    }
+                                if (saved != null) TextButton(onClick = { viewModel.clearTileTarget(actionTileId) }) {
+                                    Text("Reset", color = Color(0xFF9CA3AF), fontSize = 11.sp)
                                 }
                             }
                         }
                     }
                 }
             }
+
 
             Spacer(modifier = Modifier.height(6.dp))
 
