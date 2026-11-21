@@ -319,21 +319,32 @@ class PanelAccessibilityService : AccessibilityService() {
     }
 
     /** Return from Quick Settings by tapping the Android bottom navigation Back button. */
-    private fun closeShade(runId: String? = null) {
+    private fun closeShade(runId: String? = null, done: ((Boolean) -> Unit)? = null) {
+        fun shadeVisible(): Boolean = runCatching {
+            windows.any { it.root?.packageName?.toString()?.contains("systemui", ignoreCase = true) == true }
+        }.getOrDefault(false)
+
         mainHandler.postDelayed({
             tapNavigationBackButton(runId) { firstTapSent ->
                 mainHandler.postDelayed({
-                    val stillVisible = runCatching {
-                        windows.any { it.root?.packageName?.toString()?.contains("systemui", ignoreCase = true) == true }
-                    }.getOrDefault(false)
-                    if (stillVisible) {
-                        MiniMacroTrace.record(this, runId, "NAV_BAR_BACK_CHECK", "STILL_VISIBLE", "System UI remains visible after direct navigation-bar Back tap; no global Back fallback sent")
+                    if (shadeVisible()) {
+                        MiniMacroTrace.record(this, runId, "NAV_BAR_BACK_CHECK", "STILL_VISIBLE", "System UI remains visible; retrying Back once")
+                        mainHandler.postDelayed({
+                            tapNavigationBackButton(runId) { retrySent ->
+                                mainHandler.postDelayed({
+                                    val closed = !shadeVisible()
+                                    MiniMacroTrace.record(this, runId, "NAV_BAR_BACK_CHECK", if (closed) "RETURNED" else "FAILED", "After one retry: closed=$closed; first=$firstTapSent; retry=$retrySent")
+                                    done?.invoke(closed)
+                                }, 300L)
+                            }
+                        }, 180L)
                     } else {
-                        MiniMacroTrace.record(this, runId, "NAV_BAR_BACK_CHECK", if (firstTapSent) "RETURNED" else "CHECK_ONLY", "System UI no longer visible after navigation-bar Back attempt")
+                        MiniMacroTrace.record(this, runId, "NAV_BAR_BACK_CHECK", if (firstTapSent) "RETURNED" else "CHECK_ONLY", "System UI closed after first Back attempt")
+                        done?.invoke(true)
                     }
-                }, 650L)
+                }, 350L)
             }
-        }, 550L)
+        }, 250L)
     }
 
     private fun labelOf(n: AccessibilityNodeInfo?, depth: Int): String? {
@@ -518,7 +529,7 @@ class PanelAccessibilityService : AccessibilityService() {
             MiniMacroTrace.record(this, runId, "ACCESSIBILITY_LABEL_TAP", "START",
                 "Searching live tile labels first: ${labels.joinToString()}; saved coordinate fallback=${target?.let { "${it.x},${it.y}" } ?: "none"}")
             tryTap(labels, target, 0, runId, done)
-        }, 650L)
+        }, 450L)
     }
 
     private fun tryTap(labels: List<String>, target: TapTarget?, attempt: Int, runId: String?, done: (Boolean) -> Unit) {
@@ -540,22 +551,21 @@ class PanelAccessibilityService : AccessibilityService() {
             }
             if (clicked) {
                 MiniMacroTrace.record(this, runId, "ACCESSIBILITY_LABEL_TAP", "PASS", "Found and clicked tile after ${attempt + 1} lookup attempt(s)")
-                mainHandler.postDelayed({ closeShade(runId); done(true) }, 650L)
-            } else if (attempt < 12) {
-                if (attempt == 11) MiniMacroTrace.record(this, runId, "ACCESSIBILITY_LABEL_TAP", "WARNING", "Tile label not found after 12 attempts; trying saved coordinate")
+                closeShade(runId) { closed -> done(closed) }
+            } else if (attempt < 5) {
+                if (attempt == 4) MiniMacroTrace.record(this, runId, "ACCESSIBILITY_LABEL_TAP", "WARNING", "Tile label not found after 6 fast attempts; trying saved coordinate")
                 tryTap(labels, target, attempt + 1, runId, done)
             } else if (target != null) {
                 MiniMacroTrace.record(this, runId, "COORDINATE_TAP", "START", "Label lookup failed; coordinate fallback (${target.x}, ${target.y})")
                 tapAt(target.x, target.y) { ok ->
                     MiniMacroTrace.record(this, runId, "COORDINATE_TAP", if (ok) "PASS" else "FAILED", "Fallback gesture completed=$ok")
-                    mainHandler.postDelayed({ closeShade(runId); done(ok) }, 650L)
+                    if (ok) closeShade(runId) { closed -> done(closed) } else done(false)
                 }
             } else {
                 MiniMacroTrace.record(this, runId, "TILE_LOOKUP", "FAILED", "No clickable tile found for labels: ${labels.joinToString()}")
-                closeShade(runId)
-                done(false)
+                closeShade(runId) { done(false) }
             }
-        }, if (attempt == 0) 300L else 120L)
+        }, if (attempt == 0) 140L else 80L)
     }
 
     private fun findTile(n: AccessibilityNodeInfo?, labels: List<String>): AccessibilityNodeInfo? {
