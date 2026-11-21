@@ -274,19 +274,38 @@ class PanelAccessibilityService : AccessibilityService() {
      * Do not send a second Back to the underlying app.
      */
     private fun closeShade(runId: String? = null) {
-        val backSent = performGlobalAction(GLOBAL_ACTION_BACK)
-        MiniMacroTrace.record(this, runId, "DIRECT_BACK", if (backSent) "REQUESTED" else "FAILED", "Accessibility GLOBAL_ACTION_BACK accepted=$backSent")
+        // Let the tile's ripple/detail-panel animation finish before sending Back.
+        // Some Android 15 System UI builds need a second Back to leave the shade
+        // after the first Back closes a tile detail surface.
         mainHandler.postDelayed({
-            val systemUiStillVisible = runCatching {
-                windows.any { it.root?.packageName?.toString()?.contains("systemui", ignoreCase = true) == true }
-            }.getOrDefault(false)
-            if (systemUiStillVisible && Build.VERSION.SDK_INT >= 31) {
-                val dismissed = performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE)
-                MiniMacroTrace.record(this, runId, "BACK_FALLBACK", if (dismissed) "USED" else "FAILED", "System UI remained visible; dismiss shade accepted=$dismissed")
-            } else {
-                MiniMacroTrace.record(this, runId, "RETURN_CHECK", "PASS", "System UI no longer visible after Back")
-            }
-        }, 320L)
+            val backSent = performGlobalAction(GLOBAL_ACTION_BACK)
+            MiniMacroTrace.record(this, runId, "DIRECT_BACK", if (backSent) "REQUESTED" else "FAILED",
+                "First Accessibility GLOBAL_ACTION_BACK accepted=$backSent; delayed 550ms after tile click")
+            mainHandler.postDelayed({
+                val systemUiStillVisible = runCatching {
+                    windows.any { it.root?.packageName?.toString()?.contains("systemui", ignoreCase = true) == true }
+                }.getOrDefault(false)
+                if (systemUiStillVisible) {
+                    val retrySent = performGlobalAction(GLOBAL_ACTION_BACK)
+                    MiniMacroTrace.record(this, runId, "DIRECT_BACK_RETRY", if (retrySent) "REQUESTED" else "FAILED",
+                        "System UI still visible after first Back; second Back accepted=$retrySent")
+                    mainHandler.postDelayed({
+                        val stillVisible = runCatching {
+                            windows.any { it.root?.packageName?.toString()?.contains("systemui", ignoreCase = true) == true }
+                        }.getOrDefault(false)
+                        if (stillVisible && Build.VERSION.SDK_INT >= 31) {
+                            val dismissed = performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE)
+                            MiniMacroTrace.record(this, runId, "BACK_FALLBACK", if (dismissed) "USED" else "FAILED",
+                                "System UI remained after two Back attempts; dismiss shade accepted=$dismissed")
+                        } else {
+                            MiniMacroTrace.record(this, runId, "RETURN_CHECK", "PASS", "System UI no longer visible after Back")
+                        }
+                    }, 400L)
+                } else {
+                    MiniMacroTrace.record(this, runId, "RETURN_CHECK", "PASS", "System UI no longer visible after first Back")
+                }
+            }, 450L)
+        }, 550L)
     }
 
     private fun labelOf(n: AccessibilityNodeInfo?, depth: Int): String? {
@@ -493,7 +512,7 @@ class PanelAccessibilityService : AccessibilityService() {
             }
             if (clicked) {
                 MiniMacroTrace.record(this, runId, "ACCESSIBILITY_LABEL_TAP", "PASS", "Found and clicked tile after ${attempt + 1} lookup attempt(s)")
-                mainHandler.postDelayed({ closeShade(runId); done(true) }, 240L)
+                mainHandler.postDelayed({ closeShade(runId); done(true) }, 650L)
             } else if (attempt < 12) {
                 if (attempt == 11) MiniMacroTrace.record(this, runId, "ACCESSIBILITY_LABEL_TAP", "WARNING", "Tile label not found after 12 attempts; trying saved coordinate")
                 tryTap(labels, target, attempt + 1, runId, done)
@@ -501,7 +520,7 @@ class PanelAccessibilityService : AccessibilityService() {
                 MiniMacroTrace.record(this, runId, "COORDINATE_TAP", "START", "Label lookup failed; coordinate fallback (${target.x}, ${target.y})")
                 tapAt(target.x, target.y) { ok ->
                     MiniMacroTrace.record(this, runId, "COORDINATE_TAP", if (ok) "PASS" else "FAILED", "Fallback gesture completed=$ok")
-                    mainHandler.postDelayed({ closeShade(runId); done(ok) }, 240L)
+                    mainHandler.postDelayed({ closeShade(runId); done(ok) }, 650L)
                 }
             } else {
                 MiniMacroTrace.record(this, runId, "TILE_LOOKUP", "FAILED", "No clickable tile found for labels: ${labels.joinToString()}")
