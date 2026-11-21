@@ -1,6 +1,6 @@
 package com.example.ui.screens
 
-import com.example.model.SPECIAL_GROUPS
+import com.example.ui.components.FastAlphabetScroller
 import androidx.compose.material3.Switch
 import com.example.system.AppIcons
 import androidx.compose.ui.graphics.ImageBitmap
@@ -8,7 +8,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,12 +21,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -63,26 +60,25 @@ fun AddQuickAccessModal(
 ) {
     val masterItems by viewModel.masterItems.collectAsState()
     val filterType by viewModel.itemFilterType.collectAsState()
-    val searchQuery by viewModel.itemSearchQuery.collectAsState()
     val panelSettings by viewModel.panelSettings.collectAsState()
-    val categories by viewModel.availableCategories.collectAsState()
     val target by viewModel.addTargetGroup.collectAsState()
-    val tilesTab by viewModel.tilesTab.collectAsState()
     val groupAdded by viewModel.groupAdded.collectAsState()
     val groupRemoved by viewModel.groupRemoved.collectAsState()
     val manualGroups by viewModel.manualGroups.collectAsState()
+    val tilesTab by viewModel.tilesTab.collectAsState()
     val quickSettings by viewModel.quickSettings.collectAsState()
     val pendingGesture by viewModel.pendingGestureToBind.collectAsState()
+    val selectedLetter by viewModel.selectedAlphabetLetter.collectAsState()
 
-    var newGroupMode by remember { mutableStateOf(viewModel.consumeNewGroupRequest()) }
-    var selectedAddTab by remember(tilesTab, pendingGesture) { mutableStateOf(if (tilesTab || pendingGesture != null) "ACTIONS" else "GROUPS") }
+    var selectedAddTab by remember(tilesTab, pendingGesture) { mutableStateOf("ACTIONS") }
     LaunchedEffect(tilesTab, pendingGesture) {
-        viewModel.setItemFilterType(if (tilesTab || pendingGesture != null) ItemType.ACTION else ItemType.APP)
+        viewModel.setItemFilterType(ItemType.ACTION)
+        selectedAddTab = "ACTIONS"
     }
-    var newGroupName by remember { mutableStateOf("") }
     var newTileName by remember { mutableStateOf("") }
+    var newGroupMode by remember { mutableStateOf(viewModel.consumeNewGroupRequest()) }
+    var newGroupName by remember { mutableStateOf("") }
     val tileTargets by viewModel.tileTargets.collectAsState()
-    val groups = categories.filter { it !in SPECIAL_GROUPS }
 
     // One canonical row per action/tile. Quick Settings tiles and ACTION master items
     // are merged by the executable tile ID, so the same toggle can never appear twice.
@@ -99,7 +95,7 @@ fun AddQuickAccessModal(
         ?: if (item.id.startsWith("act_qs_")) item.id.removePrefix("act_qs_")
         else item.id.removePrefix("act_")
 
-    val unifiedActions = remember(masterItems, quickSettings, searchQuery) {
+    val unifiedActions = remember(masterItems, quickSettings) {
         val byTileId = linkedMapOf<String, AppItem>()
         masterItems.filter { it.type == ItemType.ACTION }.forEach { item ->
             byTileId[tileIdFor(item)] = item
@@ -113,22 +109,23 @@ fun AddQuickAccessModal(
                 )
             }
         }
-        byTileId.values.filter { item ->
-            searchQuery.isBlank() || item.name.contains(searchQuery, ignoreCase = true) ||
-                item.subtitle.contains(searchQuery, ignoreCase = true)
-        }
+        byTileId.values.toList()
     }
-    val filteredList = remember(masterItems, unifiedActions, filterType, searchQuery) {
-        if (filterType == ItemType.ACTION) unifiedActions else masterItems.filter { item ->
-            item.type == filterType && (searchQuery.isBlank() ||
-                item.name.contains(searchQuery, ignoreCase = true) ||
-                item.subtitle.contains(searchQuery, ignoreCase = true))
+    val filteredList = remember(masterItems, unifiedActions, filterType) {
+        if (filterType == ItemType.ACTION) unifiedActions else masterItems.filter { item -> item.type == filterType }
+    }
+    val availableLetters = remember(filteredList) {
+        filteredList.mapNotNull { it.name.firstOrNull()?.uppercaseChar() }.toSet()
+    }
+    val alphabetFilteredList = remember(filteredList, selectedLetter) {
+        if (selectedLetter == null) filteredList else filteredList.filter {
+            it.name.startsWith(selectedLetter.toString(), ignoreCase = true)
         }
     }
 
 
     FloatingWindowCard(
-        title = "Add Quick Access Item",
+        title = "Add Item",
         initialGeometry = panelSettings.quickAccessGeometry,
         onGeometryChange = { x, y, w, h ->
             viewModel.updateQuickAccessGeometry(x, y, w, h)
@@ -141,25 +138,24 @@ fun AddQuickAccessModal(
                 .fillMaxSize()
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
-            // One shared Apps + Actions catalogue for all three destinations.
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (!tilesTab && pendingGesture == null) {
-                    FilterPill("GROUPS", selectedAddTab == "GROUPS", {
-                        selectedAddTab = "GROUPS"
-                        viewModel.setItemFilterType(ItemType.APP)
-                    }, "filter_pill_groups")
-                }
+            // One shared Apps + Actions catalogue. Group selection is inherited from the Edge Panel.
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterPill("ACTIONS", selectedAddTab == "ACTIONS", {
                     selectedAddTab = "ACTIONS"
                     viewModel.setItemFilterType(ItemType.ACTION)
+                    viewModel.selectAlphabetLetter(null)
                 }, "filter_pill_actions")
                 FilterPill("APPS", selectedAddTab == "APPS", {
                     selectedAddTab = "APPS"
                     viewModel.setItemFilterType(ItemType.APP)
+                    viewModel.selectAlphabetLetter(null)
                 }, "filter_pill_apps")
+                if (pendingGesture == null && !tilesTab) {
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = { newGroupMode = !newGroupMode }) {
+                        Text("+ Group", color = Color(0xFF80DEEA), fontSize = 11.sp)
+                    }
+                }
             }
 
 
@@ -168,115 +164,30 @@ fun AddQuickAccessModal(
                 Text("Choose an app or action for: $pendingGesture", color = Color(0xFF80DEEA), fontSize = 11.sp)
                 Spacer(modifier = Modifier.height(4.dp))
             }
-
-            if (!tilesTab && pendingGesture == null && selectedAddTab == "GROUPS") {
-                Text(
-                    text = "Manage groups and choose apps or actions",
-                    color = Color(0xFF9CA3AF),
-                    fontSize = 11.sp
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    groups.forEach { g ->
-                        FilterPill(g, g == target, { viewModel.setAddTargetGroup(g) }, "target_group_$g")
-                    }
-                    FilterPill("+ New group", newGroupMode, { newGroupMode = !newGroupMode }, "new_group_pill")
-                }
-                if (newGroupMode) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = newGroupName, onValueChange = { newGroupName = it },
-                            placeholder = { Text("Group name", color = Color(0xFF6B7280), fontSize = 12.sp) },
-                            singleLine = true, modifier = Modifier.weight(1f).height(50.dp).testTag("new_group_name_field"),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF00E5FF), unfocusedBorderColor = Color(0xFF242C3D),
-                                focusedContainerColor = Color(0xFF141B26), unfocusedContainerColor = Color(0xFF141B26),
-                                focusedTextColor = Color.White, unfocusedTextColor = Color.White
-                            )
-                        )
-                        TextButton(onClick = {
-                            viewModel.createGroupFromWindow(newGroupName); newGroupName = ""; newGroupMode = false
-                        }, modifier = Modifier.testTag("create_group_button")) {
-                            Text("Create", color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold)
-                        }
+            if (newGroupMode) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedTextField(value = newGroupName, onValueChange = { newGroupName = it },
+                        placeholder = { Text("New group name", color = Color(0xFF6B7280), fontSize = 11.sp) },
+                        singleLine = true, modifier = Modifier.weight(1f).height(48.dp),
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF00E5FF),
+                            unfocusedBorderColor = Color(0xFF242C3D), focusedTextColor = Color.White, unfocusedTextColor = Color.White))
+                    TextButton(onClick = { viewModel.createGroupFromWindow(newGroupName); newGroupName = ""; newGroupMode = false }) {
+                        Text("Create", color = Color(0xFF00E5FF), fontSize = 11.sp)
                     }
                 }
-                if (groups.contains(target)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        TextButton(onClick = { viewModel.deleteGroup(target) }, modifier = Modifier.testTag("delete_group_button")) {
-                            Text("Delete group '$target'", color = Color(0xFFFF8A80), fontSize = 11.sp)
-                        }
-                    }
-                    val isManual = target in manualGroups
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween) {
-                        Column(Modifier.weight(1f)) {
-                            Text(if (isManual) "Manual group" else "Auto-detect group", color = Color.White,
-                                fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                            Text(if (isManual) "Only the apps you tick below" else "Matching apps arrive by themselves",
-                                color = Color(0xFF6B7280), fontSize = 10.sp)
-                        }
-                        Switch(checked = !isManual, onCheckedChange = { viewModel.setGroupManual(target, !it) },
-                            modifier = Modifier.testTag("group_auto_switch"))
-                    }
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    FilterPill("Apps", filterType == ItemType.APP, { viewModel.setItemFilterType(ItemType.APP) }, "group_filter_apps")
-                    FilterPill("Actions", filterType == ItemType.ACTION, { viewModel.setItemFilterType(ItemType.ACTION) }, "group_filter_actions")
-                }
-            } else if (tilesTab && pendingGesture == null) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Quick Settings", color = Color(0xFF9CA3AF), fontSize = 11.sp)
-                    Spacer(Modifier.weight(1f))
-                }
-                Text("Choose Apps or Actions below. Each item appears only once.", color = Color(0xFF9CA3AF), fontSize = 10.sp)
             }
 
-            // Search Bar
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { viewModel.setItemSearchQuery(it) },
-                placeholder = {
-                    Text(
-                        text = "Search apps, shortcuts & actions...",
-                        color = Color(0xFF6B7280),
-                        fontSize = 12.sp
-                    )
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Search",
-                        tint = Color(0xFF9CA3AF),
-                        modifier = Modifier.size(18.dp)
-                    )
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(46.dp)
-                    .testTag("quick_access_search_field"),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF00E5FF),
-                    unfocusedBorderColor = Color(0xFF242C3D),
-                    focusedContainerColor = Color(0xFF141B26),
-                    unfocusedContainerColor = Color(0xFF141B26),
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
-                ),
-                singleLine = true
-            )
+            if (pendingGesture == null && !tilesTab) {
+                Text("Add to group: $target", color = Color(0xFF80DEEA), fontSize = 11.sp)
+            } else if (tilesTab) {
+                Text("Quick Settings · Apps and Actions", color = Color(0xFF9CA3AF), fontSize = 11.sp)
+            }
 
             Spacer(modifier = Modifier.height(10.dp))
 
+            Row(Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
+                modifier = Modifier.weight(1f).fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (tilesTab && pendingGesture == null) {
@@ -303,7 +214,7 @@ fun AddQuickAccessModal(
                         }
                     }
                 }
-                items(filteredList, key = { it.id }) { item ->
+                items(alphabetFilteredList, key = { it.id }) { item ->
                     val actionTileId = if (item.type == ItemType.ACTION) tileIdFor(item) else null
                     val appTileId = if (item.type == ItemType.APP) "app_${item.packageName}" else null
                     val quickSetting = when {
@@ -314,8 +225,7 @@ fun AddQuickAccessModal(
                     val added = when {
                         pendingGesture != null -> false
                         tilesTab -> quickSetting?.isVisible == true
-                        selectedAddTab == "GROUPS" -> isInGroup(item, target, groupAdded, groupRemoved, manualGroups)
-                        else -> item.isAdded
+                        else -> isInGroup(item, target, groupAdded, groupRemoved, manualGroups)
                     }
                     Column {
                         QuickAccessListItem(item = item, isAdded = added, onToggle = {
@@ -326,9 +236,7 @@ fun AddQuickAccessModal(
                                 tilesTab && item.type == ItemType.ACTION ->
                                     viewModel.toggleActionInQuickSettings(actionTileId ?: item.id, item)
                                 tilesTab && item.type == ItemType.APP -> viewModel.toggleAppInQuickSettings(item)
-                                selectedAddTab == "GROUPS" -> viewModel.toggleItemInGroup(item.id, target)
-                                item.type == ItemType.ACTION -> viewModel.toggleActionAdded(item)
-                                else -> viewModel.toggleItemAdded(item.id)
+                                else -> viewModel.toggleItemInGroup(item.id, target)
                             }
                         })
                         if (tilesTab && item.type == ItemType.ACTION && actionTileId != null) {
@@ -348,7 +256,14 @@ fun AddQuickAccessModal(
                     }
                 }
             }
-
+                FastAlphabetScroller(
+                    availableLetters = availableLetters,
+                    selectedLetter = selectedLetter,
+                    onLetterSelected = { viewModel.selectAlphabetLetter(it) },
+                    modifier = Modifier.padding(start = 4.dp),
+                    isRightAligned = true
+                )
+            }
 
             Spacer(modifier = Modifier.height(6.dp))
 

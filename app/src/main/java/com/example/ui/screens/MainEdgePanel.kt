@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import com.example.model.MediaStreamItem
+import com.example.model.SPECIAL_GROUPS
 import androidx.compose.foundation.gestures.detectTapGestures
 import com.example.model.ItemType
 import com.example.system.AppIcons
@@ -85,6 +86,8 @@ import androidx.compose.material.icons.filled.Wifi
 import com.example.ui.components.FastAlphabetScroller
 import androidx.compose.material.icons.filled.WifiTethering
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -146,6 +149,9 @@ fun MainEdgePanel(
     val showAddGroupDialog by viewModel.showAddGroupDialog.collectAsState()
 
     var newGroupNameInput by remember { mutableStateOf("") }
+    var groupMenuTarget by remember { mutableStateOf<String?>(null) }
+    var renameGroupTarget by remember { mutableStateOf<String?>(null) }
+    var renameGroupName by remember { mutableStateOf("") }
 
     // Persistent Geometry state (user can resize directly in preview!)
     val screenH = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
@@ -453,7 +459,11 @@ fun MainEdgePanel(
                                             .background(if (isTarget) Color(0xFFFFD54F) else if (isSelected) Color(0xFF00E5FF) else Color(0xFF102E34))
                                             .pointerInput(category) {
                                                 detectTapGestures(
-                                                    onLongPress = { viewModel.startReorder(true, category) },
+                                                    onLongPress = {
+                                                        if (category !in SPECIAL_GROUPS) {
+                                                            groupMenuTarget = category
+                                                        }
+                                                    },
                                                     onTap = { viewModel.selectCategory(category) }
                                                 )
                                             }
@@ -466,6 +476,50 @@ fun MainEdgePanel(
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                             color = if (isSelected || isTarget) Color(0xFF061A1D) else Color(0xFFB2EBF2)
                                         )
+                                        DropdownMenu(
+                                            expanded = groupMenuTarget == category,
+                                            onDismissRequest = { groupMenuTarget = null }
+                                        ) {
+                                            DropdownMenuItem(
+                                                text = { Text("Delete group") },
+                                                onClick = { groupMenuTarget = null; viewModel.deleteGroup(category) }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("Rename group") },
+                                                onClick = { groupMenuTarget = null; renameGroupTarget = category; renameGroupName = category }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text(if (category in manualGroups) "Switch to Auto apps" else "Switch to Manual apps") },
+                                                onClick = { groupMenuTarget = null; viewModel.setGroupManual(category, category !in manualGroups) }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("Reorder") },
+                                                onClick = { groupMenuTarget = null; viewModel.startReorder(true, category) }
+                                            )
+                                        }
+                                        if (renameGroupTarget == category) {
+                                            AlertDialog(
+                                                onDismissRequest = { renameGroupTarget = null },
+                                                title = { Text("Rename group") },
+                                                text = {
+                                                    OutlinedTextField(
+                                                        value = renameGroupName,
+                                                        onValueChange = { renameGroupName = it },
+                                                        singleLine = true,
+                                                        label = { Text("Group name") }
+                                                    )
+                                                },
+                                                confirmButton = {
+                                                    TextButton(onClick = {
+                                                        viewModel.renameGroup(category, renameGroupName)
+                                                        renameGroupTarget = null
+                                                    }) { Text("Save") }
+                                                },
+                                                dismissButton = {
+                                                    TextButton(onClick = { renameGroupTarget = null }) { Text("Cancel") }
+                                                }
+                                            )
+                                        }
                                     }
                                 }
 

@@ -682,6 +682,27 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         saveLayout()
     }
 
+    fun renameGroup(oldName: String, newName: String) {
+        val renamed = newName.trim()
+        if (oldName in SPECIAL_GROUPS || renamed.isBlank() || renamed == oldName) return
+        if (_availableCategories.value.any { it.equals(renamed, ignoreCase = true) }) {
+            showToast("A group with that name already exists")
+            return
+        }
+        _availableCategories.update { list -> list.map { if (it == oldName) renamed else it } }
+        _groupAdded.update { map ->
+            if (oldName !in map) map else map.toMutableMap().also { it[renamed] = it.remove(oldName).orEmpty() }
+        }
+        _groupRemoved.update { map ->
+            if (oldName !in map) map else map.toMutableMap().also { it[renamed] = it.remove(oldName).orEmpty() }
+        }
+        _manualGroups.update { set -> if (oldName in set) (set - oldName) + renamed else set }
+        if (_selectedCategory.value == oldName) _selectedCategory.value = renamed
+        if (_addTargetGroup.value == oldName) _addTargetGroup.value = renamed
+        showToast("Group renamed to '$renamed'")
+        saveLayout()
+    }
+
     fun toggleItemInGroup(itemId: String, group: String) {
         val item = _masterItems.value.find { it.id == itemId } ?: AppItem(
             id = itemId, name = itemId.removePrefix("act_qs_"), packageName = "",
