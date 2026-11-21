@@ -71,30 +71,57 @@ fun AddQuickAccessModal(
     val groupRemoved by viewModel.groupRemoved.collectAsState()
     val manualGroups by viewModel.manualGroups.collectAsState()
     val quickSettings by viewModel.quickSettings.collectAsState()
+    val pendingGesture by viewModel.pendingGestureToBind.collectAsState()
 
     var newGroupMode by remember { mutableStateOf(viewModel.consumeNewGroupRequest()) }
-    var selectedAddTab by remember { mutableStateOf("GROUPS") }
+    var selectedAddTab by remember { mutableStateOf(if (tilesTab || pendingGesture != null) "ACTIONS" else "GROUPS") }
     var newGroupName by remember { mutableStateOf("") }
     var newTileName by remember { mutableStateOf("") }
     val tileTargets by viewModel.tileTargets.collectAsState()
     val groups = categories.filter { it !in SPECIAL_GROUPS }
 
-    val filteredList = remember(masterItems, filterType, searchQuery) {
-        masterItems.filter { item ->
-            val matchesType = item.type == filterType
-            val matchesQuery = searchQuery.isBlank() ||
-                item.name.contains(searchQuery, ignoreCase = true) ||
+    // One canonical row per action/tile. Quick Settings tiles and ACTION master items
+    // are merged by the executable tile ID, so the same toggle can never appear twice.
+    val actionTileIds = remember {
+        mapOf(
+            "act_wifi" to "wifi", "act_bt" to "bluetooth", "act_data" to "data",
+            "act_hotspot" to "hotspot", "act_screenshot" to "screenshot", "act_lock" to "lock",
+            "act_split" to "split", "act_floating" to "floating", "act_torch" to "torch",
+            "act_mute" to "mute", "act_open_edge" to "open_edge", "act_open_quick" to "open_quick",
+            "act_open_tools" to "open_tools", "act_open_media" to "open_media"
+        )
+    }
+    fun tileIdFor(item: AppItem): String = actionTileIds[item.id]
+        ?: if (item.id.startsWith("act_qs_")) item.id.removePrefix("act_qs_")
+        else item.id.removePrefix("act_")
+
+    val unifiedActions = remember(masterItems, quickSettings, searchQuery) {
+        val byTileId = linkedMapOf<String, AppItem>()
+        masterItems.filter { it.type == ItemType.ACTION }.forEach { item ->
+            byTileId[tileIdFor(item)] = item
+        }
+        quickSettings.filter { !it.id.startsWith("app_") }.forEach { tile ->
+            if (tile.id !in byTileId) {
+                byTileId[tile.id] = AppItem(
+                    id = "act_qs_${tile.id}", name = tile.name, packageName = "",
+                    type = ItemType.ACTION, categoryName = "Tools", iconName = tile.iconName,
+                    iconColor = tile.color, isAdded = false, subtitle = tile.description
+                )
+            }
+        }
+        byTileId.values.filter { item ->
+            searchQuery.isBlank() || item.name.contains(searchQuery, ignoreCase = true) ||
                 item.subtitle.contains(searchQuery, ignoreCase = true)
-            matchesType && matchesQuery
         }
     }
-    val filteredTiles = remember(quickSettings, searchQuery) {
-        quickSettings.filter {
-            searchQuery.isBlank() ||
-                it.name.contains(searchQuery, ignoreCase = true) ||
-                it.description.contains(searchQuery, ignoreCase = true)
+    val filteredList = remember(masterItems, unifiedActions, filterType, searchQuery, pendingGesture) {
+        if (filterType == ItemType.ACTION || pendingGesture != null) unifiedActions else masterItems.filter { item ->
+            item.type == filterType && (searchQuery.isBlank() ||
+                item.name.contains(searchQuery, ignoreCase = true) ||
+                item.subtitle.contains(searchQuery, ignoreCase = true))
         }
     }
+    val filteredTiles = remember(unifiedActions) { unifiedActions }
 
     FloatingWindowCard(
         title = "Add Quick Access Item",
@@ -134,8 +161,12 @@ fun AddQuickAccessModal(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+            if (pendingGesture != null) {
+                Text("Choose an action for: $pendingGesture", color = Color(0xFF80DEEA), fontSize = 11.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+            }
 
-            if (!tilesTab && selectedAddTab == "GROUPS") {
+            if (!tilesTab && pendingGesture == null && selectedAddTab == "GROUPS") {
                 Text(
                     text = "Manage groups and choose apps or actions",
                     color = Color(0xFF9CA3AF),
@@ -238,12 +269,12 @@ fun AddQuickAccessModal(
                     FilterPill("Apps", filterType == ItemType.APP, {
                         viewModel.setItemFilterType(ItemType.APP)
                     }, "group_filter_apps")
-                    FilterPill("Actions", filterType == ItemType.ACTION, {
+                    FilterPill("Actions", filterType == ItemType.ACTION || pendingGesture != null, {
                         viewModel.setItemFilterType(ItemType.ACTION)
                     }, "group_filter_actions")
                 }
                 Spacer(modifier = Modifier.height(4.dp))
-            } else if (!tilesTab) {
+            } else if (!tilesTab && pendingGesture == null) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("Add to group", color = Color(0xFF9CA3AF), fontSize = 10.sp)
                     Spacer(Modifier.width(8.dp))
@@ -345,51 +376,38 @@ fun AddQuickAccessModal(
                                 }
                             }
                             Text(
-                                text = "Make a tile, press Track icon, then press the icon in quick settings that it should tap.",
+                                text = "Actions and Quick Tiles are one list. Track icon to choose what a tile should tap.",
                                 color = Color(0xFF6B7280),
                                 fontSize = 10.sp
                             )
                         }
                     }
-                    items(filteredTiles, key = { it.id }) { tile ->
+                    items(filteredTiles, key = { it.id }) { item ->
+                        val tileId = tileIdFor(item)
+                        val tile = quickSettings.firstOrNull { it.id == tileId }
+                        val saved = tileTargets[tileId]
                         Column {
-                            ChoiceRow(
-                                icon = getIconVectorForName(tile.iconName),
-                                tint = Color(tile.color),
-                                title = tile.name,
-                                subtitle = tile.description,
-                                checked = tile.isVisible,
-                                tag = "quick_tile_item_${tile.id}",
-                                onToggle = { viewModel.toggleTileVisible(tile.id) }
-                            )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                val target = tileTargets[tile.id]
-                                if (target != null) {
-                                    Text(
-                                        text = "Presses: " + target.label.ifBlank { "saved spot" },
-                                        color = Color(0xFF80DEEA),
-                                        fontSize = 10.sp,
-                                        maxLines = 1,
-                                        modifier = Modifier.weight(1f).padding(start = 48.dp)
-                                    )
-                                } else {
-                                    Spacer(modifier = Modifier.weight(1f))
+                            QuickAccessListItem(
+                                item = item,
+                                isAdded = tile?.isVisible == true,
+                                onToggle = {
+                                    if (tile != null) viewModel.toggleTileVisible(tileId)
+                                    else viewModel.toggleActionInQuickSettings(tileId, item)
                                 }
-                                TextButton(onClick = { viewModel.startTrackTile(tile.id) }) {
+                            )
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                if (saved != null) {
+                                    Text("Presses: " + saved.label.ifBlank { "saved spot" }, color = Color(0xFF80DEEA),
+                                        fontSize = 10.sp, maxLines = 1, modifier = Modifier.weight(1f).padding(start = 48.dp))
+                                } else Spacer(Modifier.weight(1f))
+                                TextButton(onClick = { viewModel.startTrackTile(tileId) }) {
                                     Text("Track icon", color = Color(0xFF00E5FF), fontSize = 11.sp)
                                 }
-                                if (target != null) {
-                                    TextButton(onClick = { viewModel.clearTileTarget(tile.id) }) {
-                                        Text("Reset", color = Color(0xFF9CA3AF), fontSize = 11.sp)
-                                    }
+                                if (saved != null) TextButton(onClick = { viewModel.clearTileTarget(tileId) }) {
+                                    Text("Reset", color = Color(0xFF9CA3AF), fontSize = 11.sp)
                                 }
-                                if (tile.id.startsWith("custom_")) {
-                                    TextButton(onClick = { viewModel.removeCustomTile(tile.id) }) {
-                                        Text("Delete", color = Color(0xFFFF8A80), fontSize = 11.sp)
-                                    }
+                                if (tileId.startsWith("custom_")) TextButton(onClick = { viewModel.removeCustomTile(tileId) }) {
+                                    Text("Delete", color = Color(0xFFFF8A80), fontSize = 11.sp)
                                 }
                             }
                         }
@@ -397,35 +415,27 @@ fun AddQuickAccessModal(
                 } else {
                     items(filteredList, key = { it.id }) { item ->
                         Column {
+                            val actionTileId = if (item.type == ItemType.ACTION) tileIdFor(item) else null
                             QuickAccessListItem(
                                 item = item,
-                                isAdded = isInGroup(item, target, groupAdded, groupRemoved, manualGroups),
-                                onToggle = { viewModel.toggleItemInGroup(item.id, target) }
+                                isAdded = if (pendingGesture != null) false
+                                    else isInGroup(item, target, groupAdded, groupRemoved, manualGroups),
+                                onToggle = {
+                                    when {
+                                        pendingGesture != null && item.type == ItemType.ACTION ->
+                                            viewModel.bindActionAndFinish(item, actionTileId ?: item.id)
+                                        item.type == ItemType.ACTION -> viewModel.toggleItemInGroup(item.id, target)
+                                        else -> viewModel.toggleItemInGroup(item.id, target)
+                                    }
+                                }
                             )
-                            val trackId = when (item.id) {
-                                "act_wifi" -> "wifi"
-                                "act_bt" -> "bluetooth"
-                                "act_data" -> "data"
-                                "act_hotspot" -> "hotspot"
-                                "act_airplane" -> "airplane"
-                                "act_floating" -> "floating"
-                                "act_lock" -> "lock"
-                                "act_screenshot" -> "screenshot"
-                                "act_split" -> "split"
-                                "act_darkmode" -> "darkmode"
-                                "act_battery_saver" -> "battery_saver"
-                                "act_location" -> "location"
-                                "act_active_apps" -> "active_apps"
-                                "act_reading_mode" -> "reading_mode"
-                                else -> null
-                            }
-                            if (item.type == ItemType.ACTION && trackId != null) {
-                                val saved = tileTargets[trackId]
+                            if (item.type == ItemType.ACTION && actionTileId != null) {
+                                val saved = tileTargets[actionTileId]
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                    TextButton(onClick = { viewModel.startTrackTile(item.id) }) {
+                                    TextButton(onClick = { viewModel.startTrackTile(actionTileId) }) {
                                         Text(if (saved == null) "◎ Track / Target" else "◎ ${saved.label.ifBlank { "Saved target" }}", color = Color(0xFF00E5FF), fontSize = 10.sp)
                                     }
-                                    if (saved != null) TextButton(onClick = { viewModel.clearTileTarget(trackId) }) {
+                                    if (saved != null) TextButton(onClick = { viewModel.clearTileTarget(actionTileId) }) {
                                         Text("↻ Reset", color = Color(0xFFFFCC80), fontSize = 10.sp)
                                     }
                                 }
