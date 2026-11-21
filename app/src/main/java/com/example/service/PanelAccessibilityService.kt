@@ -325,6 +325,27 @@ class PanelAccessibilityService : AccessibilityService() {
         if (!sent) done(false)
     }
 
+    fun tapSavedBackTarget(runId: String? = null, done: (Boolean) -> Unit) {
+        val prefs = getSharedPreferences("mini_macro_back_target", Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("saved", false)) {
+            MiniMacroTrace.record(this, runId, "LAST_ONE", "FAILED", "No Back coordinate saved; use Add Item > Tracker first")
+            done(false)
+            return
+        }
+        val x = prefs.getInt("x", -1)
+        val y = prefs.getInt("y", -1)
+        if (x < 0 || y < 0) {
+            MiniMacroTrace.record(this, runId, "LAST_ONE", "FAILED", "Saved Back coordinate is invalid")
+            done(false)
+            return
+        }
+        MiniMacroTrace.record(this, runId, "LAST_ONE", "START", "Tap saved Back coordinate ($x,$y)")
+        tapAt(x, y) { ok ->
+            MiniMacroTrace.record(this, runId, "LAST_ONE", if (ok) "GESTURE_SENT" else "FAILED", "Saved Back tap dispatched=$ok; screen transition must be checked")
+            done(ok)
+        }
+    }
+
     /** Tap the Android navigation-bar Back control directly after the Quick Settings tile action. */
     private fun tapNavigationBackButton(runId: String?, done: (Boolean) -> Unit) {
         val savedBack = getSharedPreferences("mini_macro_back_target", Context.MODE_PRIVATE)
@@ -413,7 +434,7 @@ class PanelAccessibilityService : AccessibilityService() {
                     }
                 }, 350L)
             }
-        }, 250L)
+        }, 750L)
     }
 
     private fun labelOf(n: AccessibilityNodeInfo?, depth: Int): String? {
@@ -594,7 +615,7 @@ class PanelAccessibilityService : AccessibilityService() {
             val bounds = Rect()
             systemUiWindows.firstOrNull()?.getBoundsInScreen(bounds)
             MiniMacroTrace.record(this, runId, "QUICK_SETTINGS_VISIBLE", if (visible) "PASS" else "WARNING",
-                "System UI window visible=$visible; waited 650ms; display=${resources.displayMetrics.widthPixels}x${resources.displayMetrics.heightPixels}; window=$bounds")
+                "System UI window visible=$visible; waited 450ms; display=${resources.displayMetrics.widthPixels}x${resources.displayMetrics.heightPixels}; window=$bounds")
             MiniMacroTrace.record(this, runId, "ACCESSIBILITY_LABEL_TAP", "START",
                 "Searching live tile labels first: ${labels.joinToString()}; saved coordinate fallback=${target?.let { "${it.x},${it.y}" } ?: "none"}")
             tryTap(labels, target, 0, runId, done)

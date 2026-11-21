@@ -158,6 +158,15 @@ class QuickActions(private val ctx: Context, private val perms: PermissionsManag
             "screenshot" -> if (Build.VERSION.SDK_INT >= 28) global(AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT, "Screenshot") else ActionResult("Needs Android 9 or newer")
             "notifications" -> global(AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS, "Notifications")
             "home" -> global(AccessibilityService.GLOBAL_ACTION_HOME, "Home")
+            "last_one" -> {
+                val svc = PanelAccessibilityService.instance ?: return ActionResult("Last One needs Accessibility", null, "accessibility")
+                var dispatched = false
+                svc.tapSavedBackTarget(activeMacroRunId) { ok ->
+                    dispatched = ok
+                    if (!ok) onMessage?.invoke("Last One: set its Back position in Add Item > Tracker first")
+                }
+                ActionResult(if (dispatched) "Last One: Back tap sent" else "Last One: Back tap starting", null)
+            }
             "back" -> global(AccessibilityService.GLOBAL_ACTION_BACK, "Back")
             "power" -> global(AccessibilityService.GLOBAL_ACTION_POWER_DIALOG, "Power menu")
             else -> ActionResult("Not supported yet")

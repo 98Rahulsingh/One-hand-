@@ -1064,7 +1064,7 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         "act_screenshot" to "screenshot", "act_lock" to "lock", "act_split" to "split",
         "act_floating" to "floating", "act_torch" to "torch", "act_mute" to "mute",
         "act_open_edge" to "open_edge", "act_open_quick" to "open_quick",
-        "act_open_tools" to "open_tools", "act_open_media" to "open_media"
+        "act_open_tools" to "open_tools", "act_open_media" to "open_media", "act_last_one" to "last_one"
     )[itemId]
 
     fun launchApp(app: AppItem) {
@@ -1140,7 +1140,8 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
             AppItem("act_split", "Split Screen", "", ItemType.ACTION, "Tools", "vertical_split", 0xFF4CAF50, true, "Multitask two apps"),
             AppItem("act_floating", "Floating App", "", ItemType.ACTION, "Tools", "picture_in_picture", 0xFF00E5FF, true, "Open in window mode"),
             AppItem("act_torch", "Flashlight", "", ItemType.ACTION, "Tools", "flashlight_on", 0xFFFFD600, true, "Toggle LED flash"),
-            AppItem("act_mute", "Sound / Mute", "", ItemType.ACTION, "Tools", "volume_up", 0xFFE040FB, true, "Toggle ringer profile")
+            AppItem("act_mute", "Sound / Mute", "", ItemType.ACTION, "Tools", "volume_up", 0xFFE040FB, true, "Toggle ringer profile"),
+            AppItem("act_last_one", "Last One", "", ItemType.ACTION, "Tools", "keyboard_return", 0xFF80DEEA, true, "Tap your saved navigation Back coordinate")
         )
     }
 
