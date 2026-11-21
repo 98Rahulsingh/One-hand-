@@ -874,6 +874,7 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun startTrackTile(id: String) {
+        val returnToTilesTab = _tilesTab.value
         val svc = PanelAccessibilityService.instance
         if (svc == null || !perms.isAccessibilityOn()) {
             showToast("Turn on Accessibility first")
@@ -884,14 +885,20 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         svc.startTracking { t ->
             _suspended.value = false
             if (t != null) {
-                _tileTargets.update { it + (id to t) }
+                val displayName = t.label.ifBlank {
+                    _quickSettings.value.firstOrNull { it.id == id }?.name
+                        ?: _masterItems.value.firstOrNull { it.id == "act_$id" || it.id.endsWith(id) }?.name
+                        ?: id.replace('_', ' ').replaceFirstChar { it.uppercase() }
+                }
+                val savedTarget = t.copy(label = displayName)
+                _tileTargets.update { it + (id to savedTarget) }
                 actions.targets = _tileTargets.value
                 saveLayout()
-                showToast("Saved. This tile now presses " + (if (t.label.isBlank()) "that spot" else "'${t.label}'"))
+                showToast("Saved target: $displayName (${t.x}, ${t.y})")
             } else {
                 showToast("No icon was pressed")
             }
-            openAddWindow(forTiles = true)
+            openAddWindow(forTiles = returnToTilesTab)
         }
     }
 

@@ -76,6 +76,7 @@ fun AddQuickAccessModal(
         selectedAddTab = "ACTIONS"
     }
     var newTileName by remember { mutableStateOf("") }
+    var showConnectivityCreator by remember { mutableStateOf(false) }
     var newGroupMode by remember { mutableStateOf(viewModel.consumeNewGroupRequest()) }
     var newGroupName by remember { mutableStateOf("") }
     val tileTargets by viewModel.tileTargets.collectAsState()
@@ -85,7 +86,7 @@ fun AddQuickAccessModal(
     val actionTileIds = remember {
         mapOf(
             "act_wifi" to "wifi", "act_bt" to "bluetooth", "act_data" to "data",
-            "act_hotspot" to "hotspot", "act_screenshot" to "screenshot", "act_lock" to "lock",
+            "act_hotspot" to "hotspot", "act_airplane" to "airplane", "act_screenshot" to "screenshot", "act_lock" to "lock",
             "act_split" to "split", "act_floating" to "floating", "act_torch" to "torch",
             "act_mute" to "mute", "act_open_edge" to "open_edge", "act_open_quick" to "open_quick",
             "act_open_tools" to "open_tools", "act_open_media" to "open_media"
@@ -112,7 +113,10 @@ fun AddQuickAccessModal(
         byTileId.values.toList()
     }
     val filteredList = remember(masterItems, unifiedActions, filterType) {
-        if (filterType == ItemType.ACTION) unifiedActions else masterItems.filter { item -> item.type == filterType }
+        if (filterType == ItemType.ACTION) {
+            val connectivity = setOf("wifi", "bluetooth", "data", "hotspot", "airplane")
+            unifiedActions.sortedBy { if (tileIdFor(it) in connectivity || tileIdFor(it).startsWith("custom_")) 0 else 1 }
+        } else masterItems.filter { item -> item.type == filterType }
     }
     val availableLetters = remember(filteredList) {
         filteredList.mapNotNull { it.name.firstOrNull()?.uppercaseChar() }.toSet()
@@ -190,14 +194,15 @@ fun AddQuickAccessModal(
                 modifier = Modifier.weight(1f).fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (tilesTab && pendingGesture == null) {
-                    item(key = "custom_tile_creator") {
+                if ((tilesTab && pendingGesture == null) || (showConnectivityCreator && !tilesTab && pendingGesture == null)) {
+                    item(key = "connectivity_tile_creator") {
                         Column(Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
+                            Text(if (tilesTab) "Add Quick Setting tile" else "Add Connectivity toggle", color = Color(0xFF9CA3AF), fontSize = 11.sp)
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 OutlinedTextField(
                                     value = newTileName, onValueChange = { newTileName = it },
-                                    placeholder = { Text("New custom tile name", color = Color(0xFF6B7280), fontSize = 12.sp) },
+                                    placeholder = { Text("Toggle name", color = Color(0xFF6B7280), fontSize = 12.sp) },
                                     singleLine = true, modifier = Modifier.weight(1f).height(50.dp).testTag("new_tile_name_field"),
                                     shape = RoundedCornerShape(12.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
@@ -206,10 +211,24 @@ fun AddQuickAccessModal(
                                         focusedTextColor = Color.White, unfocusedTextColor = Color.White
                                     )
                                 )
-                                TextButton(onClick = { viewModel.addCustomTile(newTileName); newTileName = "" },
-                                    modifier = Modifier.testTag("add_custom_tile_button")) {
+                                TextButton(onClick = {
+                                    viewModel.addCustomTile(newTileName)
+                                    newTileName = ""
+                                    showConnectivityCreator = false
+                                }, modifier = Modifier.testTag("add_custom_tile_button")) {
                                     Text("Add", color = Color(0xFF00E5FF), fontWeight = FontWeight.Bold)
                                 }
+                            }
+                        }
+                    }
+                }
+                if (!tilesTab && pendingGesture == null && filterType == ItemType.ACTION) {
+                    item(key = "connectivity_section_header") {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("CONNECTIVITY", color = Color(0xFF80DEEA), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.weight(1f))
+                            TextButton(onClick = { showConnectivityCreator = !showConnectivityCreator }) {
+                                Text("+", color = Color(0xFF00E5FF), fontSize = 20.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -239,14 +258,16 @@ fun AddQuickAccessModal(
                                 else -> viewModel.toggleItemInGroup(item.id, target)
                             }
                         })
-                        if (tilesTab && item.type == ItemType.ACTION && actionTileId != null) {
+                        val isConnectivityAction = actionTileId in setOf("wifi", "bluetooth", "data", "hotspot", "airplane") ||
+                            (actionTileId?.startsWith("custom_") == true)
+                        if (item.type == ItemType.ACTION && actionTileId != null && (tilesTab || isConnectivityAction)) {
                             val saved = tileTargets[actionTileId]
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                if (saved != null) Text("Target: ${saved.label.ifBlank { "saved spot" }}", color = Color(0xFF80DEEA),
+                                if (saved != null) Text("${saved.label.ifBlank { item.name }}  (${saved.x}, ${saved.y})", color = Color(0xFF80DEEA),
                                     fontSize = 10.sp, modifier = Modifier.weight(1f).padding(start = 48.dp))
                                 else Spacer(Modifier.weight(1f))
                                 TextButton(onClick = { viewModel.startTrackTile(actionTileId) }) {
-                                    Text("Track", color = Color(0xFF00E5FF), fontSize = 11.sp)
+                                    Text("◎ Track", color = Color(0xFF00E5FF), fontSize = 11.sp)
                                 }
                                 if (saved != null) TextButton(onClick = { viewModel.clearTileTarget(actionTileId) }) {
                                     Text("Reset", color = Color(0xFF9CA3AF), fontSize = 11.sp)

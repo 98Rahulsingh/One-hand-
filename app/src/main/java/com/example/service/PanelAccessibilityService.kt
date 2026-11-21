@@ -218,24 +218,20 @@ class PanelAccessibilityService : AccessibilityService() {
         if (!sent) done(false)
     }
 
+    /** Return from the opened Quick Settings page using Android's direct Back navigation.
+     * If System UI is still showing after the Back event, dismiss the shade as a fallback.
+     * Do not send a second Back to the underlying app.
+     */
     private fun closeShade() {
-        if (Build.VERSION.SDK_INT >= 31) {
-            performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE)
-        }
-        // Swipe up from bottom-center + GLOBAL_ACTION_BACK so HyperOS/MIUI Quick Settings always closes
+        performGlobalAction(GLOBAL_ACTION_BACK)
         mainHandler.postDelayed({
-            val dm = resources.displayMetrics
-            val x = dm.widthPixels * 0.5f
-            val path = Path().apply {
-                moveTo(x, dm.heightPixels * 0.92f)
-                lineTo(x, dm.heightPixels * 0.30f)
+            val systemUiStillVisible = runCatching {
+                windows.any { it.root?.packageName?.toString()?.contains("systemui", ignoreCase = true) == true }
+            }.getOrDefault(false)
+            if (systemUiStillVisible && Build.VERSION.SDK_INT >= 31) {
+                performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE)
             }
-            val gesture = GestureDescription.Builder()
-                .addStroke(GestureDescription.StrokeDescription(path, 0L, 160L))
-                .build()
-            dispatchGesture(gesture, null, null)
-        }, 120L)
-        mainHandler.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 320L)
+        }, 320L)
     }
 
     private fun labelOf(n: AccessibilityNodeInfo?, depth: Int): String? {
