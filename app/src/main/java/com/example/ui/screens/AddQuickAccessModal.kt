@@ -258,8 +258,10 @@ fun AddQuickAccessModal(
                                 else -> viewModel.toggleItemInGroup(item.id, target)
                             }
                         })
-                        val isConnectivityAction = actionTileId in setOf("wifi", "bluetooth", "data", "hotspot", "airplane") ||
-                            (actionTileId?.startsWith("custom_") == true)
+                        val isConnectivityAction = actionTileId != null && (
+                            actionTileId in setOf("wifi", "bluetooth", "data", "hotspot", "airplane") ||
+                                actionTileId.startsWith("custom_")
+                            )
                         if (item.type == ItemType.ACTION && actionTileId != null && (tilesTab || isConnectivityAction)) {
                             val saved = tileTargets[actionTileId]
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
