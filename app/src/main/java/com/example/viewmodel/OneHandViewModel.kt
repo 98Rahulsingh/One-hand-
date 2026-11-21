@@ -806,6 +806,13 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
             "open_tools" -> { navigateTo(ActiveWindow.QUICK_TOOLS); togglePanel(true); return }
             "open_media" -> { navigateTo(ActiveWindow.MEDIA_CONTROL); togglePanel(true); return }
             "one_hand" -> { updateSettings { it.copy(oneHandModeEnabled = !it.oneHandModeEnabled) }; return }
+            // Last One is a direct saved-Back-coordinate action, never a Quick Settings tile.
+            // Handle it before checking _tileTargets so stale tracked tile data cannot route it
+            // into the connectivity macro (which opens Android Quick Settings).
+            "last_one" -> {
+                handleQuickResult(settingId, actions.perform(settingId))
+                return
+            }
             "none" -> return
         }
         if (settingId.startsWith("app_")) {
