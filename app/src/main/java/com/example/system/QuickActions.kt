@@ -23,6 +23,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.accessibilityservice.AccessibilityService
 import com.example.service.PanelAccessibilityService
+import com.example.service.MiniMacroTrace
 
 data class ActionResult(val message: String, val newState: Boolean? = null, val needs: String? = null)
 
@@ -40,6 +41,7 @@ class QuickActions(private val ctx: Context, private val perms: PermissionsManag
     private var freeformWarned = false
     private var lastLaunch = "none yet"
     private var lastTile = "none yet"
+    private var activeMacroRunId: String? = null
 
     init {
         try {
@@ -120,7 +122,21 @@ class QuickActions(private val ctx: Context, private val perms: PermissionsManag
         }
     }
 
-    fun perform(id: String): ActionResult = performInner(id).also { lastTile = "$id: ${it.message}" }
+    fun beginMacroRun(id: String): String {
+        val runId = MiniMacroTrace.begin(ctx, nameOf(id), targets[id])
+        activeMacroRunId = runId
+        MiniMacroTrace.record(ctx, runId, "ACCESSIBILITY_CHECK", if (perms.isAccessibilityOn() && PanelAccessibilityService.instance != null) "PASS" else "FAILED", "Accessibility enabled=${perms.isAccessibilityOn()}, service running=${PanelAccessibilityService.instance != null}")
+        return runId
+    }
+
+    fun perform(id: String, existingRunId: String? = null): ActionResult {
+        val connectivity = id in setOf("wifi", "bluetooth", "data", "hotspot", "airplane") || targets.containsKey(id)
+        activeMacroRunId = if (connectivity) existingRunId ?: beginMacroRun(id) else null
+        val result = performInner(id)
+        lastTile = "$id: ${result.message}"
+        activeMacroRunId?.let { MiniMacroTrace.record(ctx, it, "ACTION_DISPATCH", if (result.needs == "accessibility") "FAILED" else "INFO", result.message) }
+        return result
+    }
 
     private fun performInner(id: String): ActionResult = try {
         val tapped = targets[id]
@@ -191,10 +207,13 @@ class QuickActions(private val ctx: Context, private val perms: PermissionsManag
     ): ActionResult {
         val svc = PanelAccessibilityService.instance
         if (svc == null || !perms.isAccessibilityOn()) {
+            activeMacroRunId?.let { MiniMacroTrace.record(ctx, it, "ACCESSIBILITY_CHECK", "FAILED", "Service missing or Accessibility switch OFF") }
             return ActionResult("$name needs Accessibility", null, "accessibility")
         }
-        svc.tapQuickTile(labels, target) { ok ->
+        val runId = activeMacroRunId
+        svc.tapQuickTile(labels, target, runId) { ok ->
             lastTile = "$name: " + (if (ok) "icon pressed" else "icon NOT found or press failed")
+            MiniMacroTrace.record(ctx, runId, "MACRO_RESULT", if (ok) "PASS" else "FAILED", lastTile)
             if (ok) onOk() else onMessage?.invoke("Could not press the $name icon. Open Quick tiles, tap Track icon and press it once")
         }
         return ActionResult("$name: switching...", null)

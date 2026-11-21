@@ -6,6 +6,7 @@ import android.content.ComponentName
 import com.example.service.MediaListenerService
 import com.example.service.TapTarget
 import com.example.service.PanelAccessibilityService
+import com.example.service.MiniMacroTrace
 import com.example.model.ReorderTarget
 import com.example.model.SPECIAL_GROUPS
 import java.util.Collections
@@ -814,11 +815,15 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         if (settingId in needsCleanScreen || settingId in _tileTargets.value) {
-            // These act on the app underneath, so the panel must get out of the way first
+            // Start one trace ID before closing the origin panel so every stage belongs to the same run.
+            val macroRunId = if (settingId in _tileTargets.value || settingId in setOf("wifi", "bluetooth", "data", "hotspot", "airplane"))
+                actions.beginMacroRun(settingId) else null
             togglePanel(false)
+            macroRunId?.let { MiniMacroTrace.record(appContext, it, "ORIGIN_PANEL_CLOSE", if (!_isPanelOpen.value) "PASS" else "FAILED", "Quick Panel close requested; panelOpen=${_isPanelOpen.value} before $settingId") }
             viewModelScope.launch {
                 delay(180)
-                handleQuickResult(settingId, actions.perform(settingId))
+                macroRunId?.let { MiniMacroTrace.record(appContext, it, "ORIGIN_PANEL_CLOSE", "WAIT_COMPLETE", "180ms wait elapsed; invoking action") }
+                handleQuickResult(settingId, actions.perform(settingId, macroRunId))
             }
         } else {
             handleQuickResult(settingId, actions.perform(settingId))
@@ -867,6 +872,8 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Opens quick settings; the next icon you press there becomes what this tile presses. */
+    fun miniMacroTraceReport(): String = MiniMacroTrace.report(appContext)
+
     fun runMacroDiagnostics(): String {
         val a11y = if (PanelAccessibilityService.instance != null) "Connected" else "Disconnected"
         val sec = if (perms.hasSecureSettings()) "Granted" else "Not Granted"

@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import com.example.ui.components.FastAlphabetScroller
 import androidx.compose.material3.Switch
+import androidx.compose.material3.AlertDialog
 import com.example.system.AppIcons
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.foundation.Image
@@ -77,6 +78,8 @@ fun AddQuickAccessModal(
     }
     var newTileName by remember { mutableStateOf("") }
     var showConnectivityCreator by remember { mutableStateOf(false) }
+    var showMacroTrace by remember { mutableStateOf(false) }
+    var macroTraceText by remember { mutableStateOf("") }
     var newGroupMode by remember { mutableStateOf(viewModel.consumeNewGroupRequest()) }
     var newGroupName by remember { mutableStateOf("") }
     val tileTargets by viewModel.tileTargets.collectAsState()
@@ -227,6 +230,9 @@ fun AddQuickAccessModal(
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text("CONNECTIVITY", color = Color(0xFF80DEEA), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.weight(1f))
+                            TextButton(onClick = { macroTraceText = viewModel.miniMacroTraceReport(); showMacroTrace = true }) {
+                                Text("Trace", color = Color(0xFFB2EBF2), fontSize = 10.sp)
+                            }
                             TextButton(onClick = { showConnectivityCreator = !showConnectivityCreator }) {
                                 Text("+", color = Color(0xFF00E5FF), fontSize = 20.sp, fontWeight = FontWeight.Bold)
                             }
@@ -285,6 +291,22 @@ fun AddQuickAccessModal(
                     onLetterSelected = { viewModel.selectAlphabetLetter(it) },
                     modifier = Modifier.padding(start = 4.dp),
                     isRightAligned = true
+                )
+            }
+
+            if (showMacroTrace) {
+                AlertDialog(
+                    onDismissRequest = { showMacroTrace = false },
+                    title = { Text("Connectivity Mini-Macro Trace") },
+                    text = {
+                        Text(macroTraceText, color = Color(0xFFB2EBF2), fontSize = 10.sp, lineHeight = 13.sp)
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { macroTraceText = viewModel.miniMacroTraceReport() }) { Text("Refresh") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showMacroTrace = false }) { Text("Close") }
+                    }
                 )
             }
 

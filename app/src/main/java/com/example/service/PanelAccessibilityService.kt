@@ -11,6 +11,9 @@ import android.accessibilityservice.GestureDescription
 import android.os.Build
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
+import android.content.Context
+import org.json.JSONArray
+import org.json.JSONObject
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
@@ -66,6 +69,51 @@ private class OverlayOwner : LifecycleOwner, SavedStateRegistryOwner, ViewModelS
 }
 
 /** A spot (and label) in quick settings that a tile should press. */
+/** Persistent, bounded diagnostic log for the Connectivity mini-macro. */
+object MiniMacroTrace {
+    private const val PREFS = "mini_macro_trace"
+    private const val LOG = "events"
+    private const val CURRENT = "current_run"
+
+    fun begin(context: Context, action: String, target: TapTarget?): String {
+        val id = "MM-${System.currentTimeMillis()}"
+        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit().putString(CURRENT, id).apply()
+        record(context, id, "START", "INFO", "Action=$action; target=${target?.label ?: "not set"}; XY=${target?.let { "${it.x},${it.y}" } ?: "none"}")
+        return id
+    }
+
+    fun record(context: Context, runId: String?, stage: String, status: String, detail: String) {
+        if (runId.isNullOrBlank()) return
+        runCatching {
+            val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val old = JSONArray(prefs.getString(LOG, "[]") ?: "[]")
+            val next = JSONArray()
+            for (i in (old.length() - 119).coerceAtLeast(0) until old.length()) next.put(old.getJSONObject(i))
+            next.put(JSONObject().apply {
+                put("run", runId); put("time", System.currentTimeMillis()); put("stage", stage)
+                put("status", status); put("detail", detail.take(240))
+            })
+            prefs.edit().putString(LOG, next.toString()).apply()
+        }
+    }
+
+    fun report(context: Context): String = runCatching {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val arr = JSONArray(prefs.getString(LOG, "[]") ?: "[]")
+        if (arr.length() == 0) return "No mini-macro trace yet. Run a Connectivity toggle first."
+        buildString {
+            for (i in (arr.length() - 30).coerceAtLeast(0) until arr.length()) {
+                val e = arr.getJSONObject(i)
+                val time = java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.getDefault()).format(java.util.Date(e.optLong("time")))
+                append(time).append(" | ").append(e.optString("run")).append(" | ")
+                    .append(e.optString("stage")).append(" | ").append(e.optString("status"))
+                    .append(" | ").append(e.optString("detail")).append('\n')
+            }
+        }
+    }.getOrElse { "Could not read mini-macro trace: ${it.message}" }
+}
+
 data class TapTarget(val x: Int, val y: Int, val label: String)
 
 private data class OverlayState(
@@ -222,14 +270,18 @@ class PanelAccessibilityService : AccessibilityService() {
      * If System UI is still showing after the Back event, dismiss the shade as a fallback.
      * Do not send a second Back to the underlying app.
      */
-    private fun closeShade() {
-        performGlobalAction(GLOBAL_ACTION_BACK)
+    private fun closeShade(runId: String? = null) {
+        val backSent = performGlobalAction(GLOBAL_ACTION_BACK)
+        MiniMacroTrace.record(this, runId, "DIRECT_BACK", if (backSent) "REQUESTED" else "FAILED", "Accessibility GLOBAL_ACTION_BACK accepted=$backSent")
         mainHandler.postDelayed({
             val systemUiStillVisible = runCatching {
                 windows.any { it.root?.packageName?.toString()?.contains("systemui", ignoreCase = true) == true }
             }.getOrDefault(false)
             if (systemUiStillVisible && Build.VERSION.SDK_INT >= 31) {
-                performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE)
+                val dismissed = performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE)
+                MiniMacroTrace.record(this, runId, "BACK_FALLBACK", if (dismissed) "USED" else "FAILED", "System UI remained visible; dismiss shade accepted=$dismissed")
+            } else {
+                MiniMacroTrace.record(this, runId, "RETURN_CHECK", "PASS", "System UI no longer visible after Back")
             }
         }, 320L)
     }
@@ -398,24 +450,30 @@ class PanelAccessibilityService : AccessibilityService() {
     private val mainHandler = Handler(Looper.getMainLooper())
 
     /** 1. open quick settings  2. press the tile  3. close it. Done as fast as the phone's animation allows. */
-    fun tapQuickTile(labels: List<String>, target: TapTarget? = null, done: (Boolean) -> Unit) {
-        performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS)
+    fun tapQuickTile(labels: List<String>, target: TapTarget? = null, runId: String? = null, done: (Boolean) -> Unit) {
+        val opened = performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS)
+        MiniMacroTrace.record(this, runId, "QUICK_SETTINGS_OPEN", if (opened) "REQUESTED" else "FAILED", "Global Quick Settings action accepted=$opened")
         if (target != null) {
             mainHandler.postDelayed({
+                val visible = runCatching { windows.any { it.root?.packageName?.toString()?.contains("systemui", true) == true } }.getOrDefault(false)
+                MiniMacroTrace.record(this, runId, "QUICK_SETTINGS_VISIBLE", if (visible) "PASS" else "WARNING", "System UI window visible=$visible; waited 500ms")
+                MiniMacroTrace.record(this, runId, "COORDINATE_TAP", "START", "Dispatching tap at (${target.x}, ${target.y})")
                 tapAt(target.x, target.y) { ok ->
+                    MiniMacroTrace.record(this, runId, "COORDINATE_TAP", if (ok) "PASS" else "FAILED", "dispatchGesture completed=$ok at (${target.x}, ${target.y})")
                     if (ok || labels.isEmpty()) {
-                        mainHandler.postDelayed({ closeShade(); done(ok) }, 240L)
+                        mainHandler.postDelayed({ closeShade(runId); done(ok) }, 240L)
                     } else {
-                        tryTap(labels, null, 0, done)
+                        tryTap(labels, null, 0, runId, done)
                     }
                 }
             }, 500L)
         } else {
-            tryTap(labels, null, 0, done)
+            MiniMacroTrace.record(this, runId, "COORDINATE_TAP", "SKIPPED", "No saved target; attempting accessibility label lookup: ${labels.joinToString()}")
+            tryTap(labels, null, 0, runId, done)
         }
     }
 
-    private fun tryTap(labels: List<String>, target: TapTarget?, attempt: Int, done: (Boolean) -> Unit) {
+    private fun tryTap(labels: List<String>, target: TapTarget?, attempt: Int, runId: String?, done: (Boolean) -> Unit) {
         mainHandler.postDelayed({
             val node = if (labels.isEmpty()) null else windows.asSequence()
                 .mapNotNull { it.root }
@@ -433,13 +491,20 @@ class PanelAccessibilityService : AccessibilityService() {
                 }
             }
             if (clicked) {
-                mainHandler.postDelayed({ closeShade(); done(true) }, 240L)
+                MiniMacroTrace.record(this, runId, "ACCESSIBILITY_LABEL_TAP", "PASS", "Found and clicked tile after ${attempt + 1} lookup attempt(s)")
+                mainHandler.postDelayed({ closeShade(runId); done(true) }, 240L)
             } else if (attempt < 12) {
-                tryTap(labels, target, attempt + 1, done)
+                if (attempt == 11) MiniMacroTrace.record(this, runId, "ACCESSIBILITY_LABEL_TAP", "WARNING", "Tile label not found after 12 attempts; trying saved coordinate")
+                tryTap(labels, target, attempt + 1, runId, done)
             } else if (target != null) {
-                tapAt(target.x, target.y) { ok -> mainHandler.postDelayed({ closeShade(); done(ok) }, 240L) }
+                MiniMacroTrace.record(this, runId, "COORDINATE_TAP", "START", "Label lookup failed; coordinate fallback (${target.x}, ${target.y})")
+                tapAt(target.x, target.y) { ok ->
+                    MiniMacroTrace.record(this, runId, "COORDINATE_TAP", if (ok) "PASS" else "FAILED", "Fallback gesture completed=$ok")
+                    mainHandler.postDelayed({ closeShade(runId); done(ok) }, 240L)
+                }
             } else {
-                closeShade()
+                MiniMacroTrace.record(this, runId, "TILE_LOOKUP", "FAILED", "No clickable tile found for labels: ${labels.joinToString()}")
+                closeShade(runId)
                 done(false)
             }
         }, if (attempt == 0) 300L else 120L)
