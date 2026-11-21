@@ -379,7 +379,8 @@ class QuickActions(private val ctx: Context, private val perms: PermissionsManag
     /** Where this app's floating window opens: where it was last time, else a default spot. */
     private fun launchRect(pkg: String): Rect {
         val dm = ctx.resources.displayMetrics
-        val saved = FloatingStore(ctx).get(pkg)
+        val settings = com.example.data.SettingsStore(ctx).load()
+        val saved = if (settings.rememberFloatingPosition) FloatingStore(ctx).get(pkg) else null
         if (saved != null) {
             val l = saved.left.coerceIn(0, dm.widthPixels - 200)
             val t = saved.top.coerceIn(0, dm.heightPixels - 200)
@@ -387,8 +388,8 @@ class QuickActions(private val ctx: Context, private val perms: PermissionsManag
             val b = saved.bottom.coerceIn(t + 200, dm.heightPixels)
             return Rect(l, t, r, b)
         }
-        val w = (dm.widthPixels * 0.88).toInt()
-        val h = (dm.heightPixels * 0.55).toInt()
+        val w = (settings.floatingWidthDp * dm.density).toInt().coerceIn(220, dm.widthPixels - 24)
+        val h = (settings.floatingLengthDp * dm.density).toInt().coerceIn(240, dm.heightPixels - 48)
         val l = (dm.widthPixels - w) / 2
         val t = (dm.heightPixels - h - (16 * dm.density).toInt()).coerceAtLeast(0)
         return Rect(l, t, l + w, t + h)

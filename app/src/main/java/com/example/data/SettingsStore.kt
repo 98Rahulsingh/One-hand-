@@ -49,6 +49,8 @@ class SettingsStore(ctx: Context) {
             verticalOffsetDp = p.getInt("verticalOffsetDp", d.verticalOffsetDp),
             floatingLengthDp = p.getFloat("floatingLengthDp", d.floatingLengthDp),
             floatingWidthDp = p.getFloat("floatingWidthDp", d.floatingWidthDp),
+            quickPanelLengthDp = p.getFloat("quickPanelLengthDp", d.quickPanelLengthDp),
+            quickPanelWidthDp = p.getFloat("quickPanelWidthDp", d.quickPanelWidthDp),
             quickToolLengthDp = p.getFloat("quickToolLengthDp", d.quickToolLengthDp),
             quickToolWidthDp = p.getFloat("quickToolWidthDp", d.quickToolWidthDp),
             mediaControlLengthDp = p.getFloat("mediaControlLengthDp", d.mediaControlLengthDp),
@@ -64,7 +66,12 @@ class SettingsStore(ctx: Context) {
             showApkNameInGroupList = p.getBoolean("showApkNameInGroupList", d.showApkNameInGroupList),
             showActionNameInList = p.getBoolean("showActionNameInList", d.showActionNameInList),
             showActiveMediaInQuickPanel = p.getBoolean("showActiveMediaInQuickPanel", d.showActiveMediaInQuickPanel),
-            showActiveMediaInMediaControl = p.getBoolean("showActiveMediaInMediaControl", d.showActiveMediaInMediaControl)
+            showActiveMediaInMediaControl = p.getBoolean("showActiveMediaInMediaControl", d.showActiveMediaInMediaControl),
+            gestureBindings = (p.getString("gestureBindingsRaw", "") ?: "").split(";;")
+                .mapNotNull { entry ->
+                    val parts = entry.split("==")
+                    if (parts.size == 2 && parts[0].isNotBlank() && parts[1].isNotBlank()) parts[0] to parts[1] else null
+                }.toMap()
         )
     }
 
@@ -100,6 +107,8 @@ class SettingsStore(ctx: Context) {
             .putInt("verticalOffsetDp", s.verticalOffsetDp)
             .putFloat("floatingLengthDp", s.floatingLengthDp)
             .putFloat("floatingWidthDp", s.floatingWidthDp)
+            .putFloat("quickPanelLengthDp", s.quickPanelLengthDp)
+            .putFloat("quickPanelWidthDp", s.quickPanelWidthDp)
             .putFloat("quickToolLengthDp", s.quickToolLengthDp)
             .putFloat("quickToolWidthDp", s.quickToolWidthDp)
             .putFloat("mediaControlLengthDp", s.mediaControlLengthDp)
@@ -116,6 +125,7 @@ class SettingsStore(ctx: Context) {
             .putBoolean("showActionNameInList", s.showActionNameInList)
             .putBoolean("showActiveMediaInQuickPanel", s.showActiveMediaInQuickPanel)
             .putBoolean("showActiveMediaInMediaControl", s.showActiveMediaInMediaControl)
+            .putString("gestureBindingsRaw", s.gestureBindings.entries.joinToString(";;") { "${it.key}==${it.value}" })
             .apply()
     }
 }

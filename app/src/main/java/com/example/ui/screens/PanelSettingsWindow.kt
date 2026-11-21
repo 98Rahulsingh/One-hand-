@@ -52,6 +52,8 @@ fun PanelSettingsWindow(
         modifier = modifier
             .fillMaxSize()
             .background(Color(0xFF0A1418))
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .padding(6.dp)
     ) {
         // Slim Title Strip
@@ -173,10 +175,10 @@ fun PanelSettingsWindow(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(g, color = Color(0xFFE0F7FA), fontSize = 10.sp, fontWeight = FontWeight.Medium)
-                                Text(bound, color = Color(0xFF80DEEA), fontSize = 9.sp)
+                                Text(if (bound == "None") "Unassigned" else bound, color = if (bound == "None") Color(0xFF64748B) else Color(0xFF00E5FF), fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
                             }
                             Text(
-                                text = "+ Add Item",
+                                text = if (bound == "None") "+ Add Item" else "Change ($bound)",
                                 color = Color(0xFF00E5FF),
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -205,6 +207,12 @@ fun PanelSettingsWindow(
             // 6. FLOATING CENTRE
             item {
                 SlimCollapsibleSection("Floating Centre", "Floating Centre" in expanded, { toggleSec("Floating Centre") }) {
+                    SlimSlider("Height Quick", s.quickPanelLengthDp, 220f..560f, "${s.quickPanelLengthDp.toInt()}dp") {
+                        viewModel.updateSettings { cur -> cur.copy(quickPanelLengthDp = it) }
+                    }
+                    SlimSlider("Width Quick", s.quickPanelWidthDp, 180f..360f, "${s.quickPanelWidthDp.toInt()}dp") {
+                        viewModel.updateSettings { cur -> cur.copy(quickPanelWidthDp = it) }
+                    }
                     SlimSlider("Length Tool", s.quickToolLengthDp, 140f..380f, "${s.quickToolLengthDp.toInt()}dp") {
                         viewModel.updateSettings { cur -> cur.copy(quickToolLengthDp = it) }
                     }

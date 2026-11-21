@@ -162,6 +162,11 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
             // Android 12+ AOSP One-Handed Mode
             android.provider.Settings.Secure.putInt(cr, "one_handed_mode_enabled", 1)
             android.provider.Settings.Secure.putInt(cr, "one_handed_mode_activated", if (s.oneHandModeEnabled) 1 else 0)
+            runCatching {
+                appContext.sendBroadcast(android.content.Intent("miui.intent.action.CHANGE_HANDY_MODE_STATE").apply {
+                    putExtra("state", if (s.oneHandModeEnabled) (if (s.oneHandCornerRight) 2 else 1) else 0)
+                })
+            }
         } catch (_: Throwable) {}
     }
 

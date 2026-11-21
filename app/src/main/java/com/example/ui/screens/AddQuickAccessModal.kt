@@ -236,8 +236,7 @@ fun AddQuickAccessModal(
                                     tint = Color(0xFF00E5FF),
                                     modifier = Modifier.size(15.dp)
                                 )
-                                if (panelSettings.showActionNameInList) {
-                                    Spacer(Modifier.width(6.dp))
+                                Spacer(Modifier.width(6.dp))
                                     Text(
                                         text = if (savedTarget != null && savedTarget.label.isNotBlank()) "${actName} (${savedTarget.label})" else actName,
                                         color = Color(0xFFE0F7FA),
@@ -245,7 +244,6 @@ fun AddQuickAccessModal(
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
-                                }
                             }
                             if (savedTarget != null) {
                                 Text(
@@ -358,7 +356,19 @@ fun AddQuickAccessModal(
                                             Spacer(Modifier.width(6.dp))
                                             Text(grp, color = Color.White, fontSize = 10.sp)
                                         }
-                                        if (isSel) Text("✓", color = Color.White, fontSize = 10.sp)
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            if (isSel) Text("✓", color = Color.White, fontSize = 10.sp)
+                                            if (grp !in SPECIAL_GROUPS) {
+                                                Text(
+                                                    text = "🗑",
+                                                    fontSize = 10.sp,
+                                                    modifier = Modifier.clickable {
+                                                        viewModel.deleteGroup(grp)
+                                                        if (selectedGroup == grp) selectedGroup = null
+                                                    }
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                                 item {
@@ -397,11 +407,7 @@ fun AddQuickAccessModal(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.SpaceBetween
                                         ) {
-                                            if (panelSettings.showApkNameInGroupList) {
-                                                Text(item.name, color = Color(0xFFE0F7FA), fontSize = 10.sp, maxLines = 1)
-                                            } else {
-                                                Text("•", color = Color(0xFF80DEEA), fontSize = 10.sp)
-                                            }
+                                            Text(item.name, color = Color(0xFFE0F7FA), fontSize = 10.sp, maxLines = 1)
                                             Text(if (inGrp) "✓" else "+", color = Color(0xFF00E5FF), fontSize = 10.sp)
                                         }
                                     }

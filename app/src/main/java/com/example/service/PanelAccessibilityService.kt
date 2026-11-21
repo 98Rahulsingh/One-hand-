@@ -222,9 +222,8 @@ class PanelAccessibilityService : AccessibilityService() {
         if (Build.VERSION.SDK_INT >= 31) {
             performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE)
         }
-        mainHandler.postDelayed({
-            performGlobalAction(GLOBAL_ACTION_BACK)
-        }, 120L)
+        mainHandler.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 140L)
+        mainHandler.postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 340L)
     }
 
     private fun labelOf(n: AccessibilityNodeInfo?, depth: Int): String? {
@@ -258,7 +257,7 @@ class PanelAccessibilityService : AccessibilityService() {
         val overlayAllowed = !s.activityVisible && !s.suspended
         val panelNeeded = s.panelOpen || s.window != ActiveWindow.MAIN_PANEL
         if (overlayAllowed && panelNeeded) showPanel() else hidePanel()
-        if (overlayAllowed && !panelNeeded && s.settings.isEdgeHandleEnabled) {
+        if ((overlayAllowed || s.window == ActiveWindow.PANEL_SETTINGS) && (!panelNeeded || s.window == ActiveWindow.PANEL_SETTINGS) && s.settings.isEdgeHandleEnabled) {
             if (s.settings.rightTriggerEnabled) showSideHandle(isRight = true, st = s.settings) else hideSideHandle(true)
             if (s.settings.leftTriggerEnabled) showSideHandle(isRight = false, st = s.settings) else hideSideHandle(false)
         } else {

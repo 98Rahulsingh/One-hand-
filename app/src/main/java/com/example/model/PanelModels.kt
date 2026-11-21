@@ -127,6 +127,8 @@ data class PanelSettings(
     val verticalOffsetDp: Int = 0,
     val floatingLengthDp: Float = 380f,
     val floatingWidthDp: Float = 270f,
+    val quickPanelLengthDp: Float = 360f,
+    val quickPanelWidthDp: Float = 270f,
     val quickToolLengthDp: Float = 220f,
     val quickToolWidthDp: Float = 250f,
     val mediaControlLengthDp: Float = 160f,

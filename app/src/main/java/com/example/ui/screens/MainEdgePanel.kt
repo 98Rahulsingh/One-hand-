@@ -147,14 +147,15 @@ fun MainEdgePanel(
     var newGroupNameInput by remember { mutableStateOf("") }
 
     // Persistent Geometry state (user can resize directly in preview!)
-    var currentWidthDp by remember(panelSettings.mainPanelGeometry.widthDp) {
-        mutableFloatStateOf(panelSettings.mainPanelGeometry.widthDp)
+    val screenH = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
+    var currentWidthDp by remember(panelSettings.panelWidthDp) {
+        mutableFloatStateOf(panelSettings.panelWidthDp)
     }
-    var currentHeightDp by remember(panelSettings.mainPanelGeometry.heightDp) {
-        mutableFloatStateOf(panelSettings.mainPanelGeometry.heightDp)
+    var currentHeightDp by remember(panelSettings.panelHeightPercent, screenH) {
+        mutableFloatStateOf((screenH * panelSettings.panelHeightPercent / 100f).coerceIn(220f, screenH.toFloat()))
     }
-    var currentYOffset by remember(panelSettings.mainPanelGeometry.yOffset) {
-        mutableFloatStateOf(panelSettings.mainPanelGeometry.yOffset)
+    var currentYOffset by remember(panelSettings.verticalPosition, panelSettings.verticalOffsetDp) {
+        mutableFloatStateOf((panelSettings.verticalPosition - 5) * 32f + panelSettings.verticalOffsetDp)
     }
 
     // Apps of the selected group (before the A-Z letter filter)
@@ -331,8 +332,7 @@ fun MainEdgePanel(
                             }
 
                             // Hide / Unhide Brightness, Volume & Media Sliders
-                            IconButton(
-                                onClick = { viewModel.toggleTopMediaSection() },
+                            ,
                                 modifier = Modifier.size(26.dp).testTag("header_hide_unhide_media")
                             ) {
                                 Icon(
@@ -631,6 +631,7 @@ fun HorizontalAlphabetBar(
 @Composable
 fun CompactAppTile(
     item: AppItem,
+    showLabel: Boolean = true,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -667,7 +668,7 @@ fun CompactAppTile(
             }
         }
         Spacer(modifier = Modifier.height(2.dp))
-        Text(
+        if (showLabel) if (showLabel) Text(
             text = item.name,
             color = Color(0xFFE0F7FA),
             fontSize = 9.sp,
@@ -905,6 +906,7 @@ fun CompactMediaAndSliders(
 @Composable
 fun QuickSettingsRow(
     quickSettings: List<QuickSettingItem>,
+    showActionNames: Boolean = true,
     onToggleSetting: (String) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenActionsAdd: () -> Unit,
@@ -978,6 +980,7 @@ fun QuickSettingsRow(
 @Composable
 fun QuickSettingChip(
     item: QuickSettingItem,
+    showLabel: Boolean = true,
     onToggle: () -> Unit,
     onLongPress: () -> Unit = {},
     isReorderTarget: Boolean = false
@@ -1014,7 +1017,7 @@ fun QuickSettingChip(
             )
         }
         Spacer(modifier = Modifier.height(2.dp))
-        Text(
+        if (showLabel) if (showLabel) Text(
             text = item.name,
             color = if (item.isEnabled) Color(0xFF00E5FF) else Color(0xFF80DEEA).copy(alpha = 0.8f),
             fontSize = 8.sp,
@@ -1101,34 +1104,54 @@ fun ActiveMediaStreams(
     onEnableAccess: () -> Unit = {},
     onScan: () -> Unit = {}
 ) {
-    var hidden by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
-    val active = streams.firstOrNull { it.isActive } ?: streams.firstOrNull()
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(22.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .background(Color(0xFF0A2429))
-                .clickable { hidden = !hidden }
-                .padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = if (hidden) "Active Media (Hidden)" else if (active != null) "♪ ${active.appName}: ${active.trackTitle}" else if (!mediaAccessOn) "♪ Allow Media Control" else "♪ No active media",
-                color = Color(0xFF80DEEA),
-                fontSize = 10.sp,
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                text = if (hidden) "Show" else "Hide",
-                color = Color(0xFF00E5FF),
-                fontSize = 9.sp,
-                fontWeight = FontWeight.SemiBold
-            )
+    androidx.compose.foundation.lazy.LazyColumn(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 76.dp, max = 112.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        if (streams.isEmpty()) {
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(24.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xFF0A2429))
+                        .clickable { if (!mediaAccessOn) onEnableAccess() else onScan() }
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (!mediaAccessOn) "♪ Allow Media Control" else "♪ No active media",
+                        color = Color(0xFF80DEEA),
+                        fontSize = 10.sp,
+                        maxLines = 1
+                    )
+                }
+            }
+        } else {
+            items(streams.size) { i ->
+                val s = streams[i]
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(24.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (s.isActive) Color(0xFF00BCD4).copy(alpha = 0.25f) else Color(0xFF0A2429))
+                        .clickable { onSelect(s.id) }
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "♪ ${s.appName}: ${s.trackTitle}",
+                        color = Color(0xFFE0F7FA),
+                        fontSize = 10.sp,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
+            }
         }
     }
 }
