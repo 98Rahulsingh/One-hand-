@@ -192,11 +192,41 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun toggleAppInQuickSettings(app: AppItem) {
+        if (app.packageName.isBlank()) return
+        val tileId = "app_${app.packageName}"
+        _quickSettings.update { list ->
+            val exists = list.any { it.id == tileId }
+            if (exists) {
+                list.map { if (it.id == tileId) it.copy(isVisible = !it.isVisible) else it }
+            } else {
+                list + QuickSettingItem(
+                    id = tileId,
+                    name = app.name,
+                    iconName = "apps",
+                    isEnabled = true,
+                    color = 0xFF00E5FF,
+                    description = "Quick app: ${app.name}",
+                    isVisible = true
+                )
+            }
+        }
+        saveLayout()
+        showToast("Updated Quick Settings: ${app.name}")
+    }
+
     fun executeGesture(gestureName: String) {
         val label = _panelSettings.value.gestureBindings[gestureName]
         if (label.isNullOrBlank()) {
             navigateTo(ActiveWindow.MAIN_PANEL)
             togglePanel(true)
+            return
+        }
+        val qsMatch = _quickSettings.value.firstOrNull {
+            it.name.equals(label, ignoreCase = true) || it.id.equals(label, ignoreCase = true)
+        }
+        if (qsMatch != null) {
+            toggleQuickSetting(qsMatch.id)
             return
         }
         val match = _masterItems.value.firstOrNull { it.name.equals(label, ignoreCase = true) }
@@ -705,6 +735,12 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
             "open_media" -> { navigateTo(ActiveWindow.MEDIA_CONTROL); togglePanel(true); return }
             "one_hand" -> { updateSettings { it.copy(oneHandModeEnabled = !it.oneHandModeEnabled) }; return }
             "none" -> return
+        }
+        if (settingId.startsWith("app_")) {
+            val pkg = settingId.removePrefix("app_")
+            actions.launch(pkg)
+            togglePanel(false)
+            return
         }
         if (settingId in needsCleanScreen || settingId in _tileTargets.value) {
             // These act on the app underneath, so the panel must get out of the way first

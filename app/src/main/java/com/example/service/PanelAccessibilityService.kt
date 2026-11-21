@@ -207,9 +207,9 @@ class PanelAccessibilityService : AccessibilityService() {
     }
 
     private fun tapAt(x: Int, y: Int, done: (Boolean) -> Unit) {
-        val path = Path().apply { moveTo(x.toFloat(), y.toFloat()) }
+        val path = Path().apply { moveTo(x.toFloat(), y.toFloat()); lineTo(x + 1f, y + 1f) }
         val gesture = GestureDescription.Builder()
-            .addStroke(GestureDescription.StrokeDescription(path, 0L, 40L))
+            .addStroke(GestureDescription.StrokeDescription(path, 0L, 60L))
             .build()
         val sent = dispatchGesture(gesture, object : AccessibilityService.GestureResultCallback() {
             override fun onCompleted(gestureDescription: GestureDescription?) { done(true) }
@@ -413,7 +413,7 @@ class PanelAccessibilityService : AccessibilityService() {
                         tryTap(labels, null, 0, done)
                     }
                 }
-            }, 420L)
+            }, 500L)
         } else {
             tryTap(labels, null, 0, done)
         }

@@ -65,6 +65,7 @@ fun AddQuickAccessModal(
     val groupAdded by viewModel.groupAdded.collectAsState()
     val groupRemoved by viewModel.groupRemoved.collectAsState()
     val quickSettings by viewModel.quickSettings.collectAsState()
+    val tilesTab by viewModel.tilesTab.collectAsState()
     val tileTargets by viewModel.tileTargets.collectAsState()
     val pendingGesture by viewModel.pendingGestureToBind.collectAsState()
 
@@ -82,11 +83,11 @@ fun AddQuickAccessModal(
     val scope = rememberCoroutineScope()
 
     val allGroups = remember(categories) { (DefaultV5Groups + categories).distinct() }
-    val appItems = remember(masterItems, selectedGroup, groupAdded, groupRemoved, manualGroups) {
-        val baseApps = masterItems.filter { it.type == ItemType.APP || it.type == ItemType.ACTION }.sortedBy { it.name.lowercase() }
-        val g = selectedGroup
-        if (g == null || g == "All") baseApps
-        else baseApps.filter { isInGroup(it, g, groupAdded, groupRemoved, manualGroups) }
+    val allAppsOnly = remember(masterItems) {
+        masterItems.filter { it.type == ItemType.APP }.sortedBy { it.name.lowercase() }
+    }
+    val allAppsAndActions = remember(masterItems) {
+        masterItems.filter { it.type == ItemType.APP || it.type == ItemType.ACTION }.sortedBy { it.name.lowercase() }
     }
 
     FloatingWindowCard(
@@ -161,14 +162,24 @@ fun AddQuickAccessModal(
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        items(appItems) { item ->
+                        items(allAppsOnly) { item ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(28.dp)
                                     .clip(RoundedCornerShape(6.dp))
                                     .background(if (item.isAdded) Color(0xFF00BCD4).copy(alpha = 0.2f) else Color(0xFF10252C))
-                                    .clickable { viewModel.bindAndFinish(item) }
+                                    .clickable {
+                                    if (pendingGesture != null) {
+                                        viewModel.bindAndFinish(item)
+                                    } else if (tilesTab) {
+                                        viewModel.toggleAppInQuickSettings(item)
+                                    } else if (selectedGroup != null) {
+                                        viewModel.toggleItemInGroup(item.id, selectedGroup!!)
+                                    } else {
+                                        viewModel.toggleItemAdded(item.id)
+                                    }
+                                }
                                     .padding(horizontal = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
@@ -202,7 +213,7 @@ fun AddQuickAccessModal(
                     V5AbcdRail(
                         onLetter = { ch ->
                             activeLetter = ch
-                            val targetIdx = appItems.indexOfFirst { it.name.startsWith(ch, ignoreCase = true) }
+                            val targetIdx = allAppsOnly.indexOfFirst { it.name.startsWith(ch, ignoreCase = true) }
                             if (targetIdx >= 0) scope.launch { listState.scrollToItem(targetIdx) }
                         },
                         onRelease = { activeLetter = null }
@@ -294,7 +305,17 @@ fun AddQuickAccessModal(
                                 .height(26.dp)
                                 .clip(RoundedCornerShape(6.dp))
                                 .background(Color(0xFF10252C))
-                                .clickable { viewModel.bindAndFinish(item) }
+                                .clickable {
+                                    if (pendingGesture != null) {
+                                        viewModel.bindAndFinish(item)
+                                    } else if (tilesTab) {
+                                        viewModel.toggleAppInQuickSettings(item)
+                                    } else if (selectedGroup != null) {
+                                        viewModel.toggleItemInGroup(item.id, selectedGroup!!)
+                                    } else {
+                                        viewModel.toggleItemAdded(item.id)
+                                    }
+                                }
                                 .padding(horizontal = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -476,7 +497,7 @@ fun AddQuickAccessModal(
                                     modifier = Modifier.weight(1f).fillMaxHeight(),
                                     verticalArrangement = Arrangement.spacedBy(2.dp)
                                 ) {
-                                    items(appItems) { item ->
+                                    items(allAppsAndActions) { item ->
                                         val inGrp = selectedGroup?.let { isInGroup(item, it, groupAdded, groupRemoved, manualGroups) } == true
                                         Row(
                                             modifier = Modifier
@@ -498,7 +519,7 @@ fun AddQuickAccessModal(
                                 V5AbcdRail(
                                     onLetter = { ch ->
                                         activeLetter = ch
-                                        val idx = appItems.indexOfFirst { it.name.startsWith(ch, ignoreCase = true) }
+                                        val idx = allAppsAndActions.indexOfFirst { it.name.startsWith(ch, ignoreCase = true) }
                                         if (idx >= 0) scope.launch { listState.scrollToItem(idx) }
                                     },
                                     onRelease = { activeLetter = null }
