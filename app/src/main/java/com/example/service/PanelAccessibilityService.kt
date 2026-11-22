@@ -616,6 +616,7 @@ class PanelAccessibilityService : AccessibilityService() {
         var downTime = 0L
         var swipeDetected = false
         var horizontalDetected = false
+        var movedBeyondTapSlop = false
         var actionFired = false
         var released = false
         var holdRunnable: Runnable? = null
@@ -632,11 +633,15 @@ class PanelAccessibilityService : AccessibilityService() {
                     downTime = System.currentTimeMillis()
                     swipeDetected = false
                     horizontalDetected = false
+                    movedBeyondTapSlop = false
                     actionFired = false
                     released = false
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val horizontalDistance = abs(ev.rawX - downX)
+                    if (horizontalDistance > dp(12f) || abs(ev.rawY - downY) > dp(12f)) {
+                        movedBeyondTapSlop = true
+                    }
                     if (!horizontalDetected && horizontalDistance > dp(24f)) {
                         horizontalDetected = true
                         actionFired = true
@@ -660,6 +665,12 @@ class PanelAccessibilityService : AccessibilityService() {
                     if (swipeDetected && !actionFired && ev.actionMasked == MotionEvent.ACTION_UP) {
                         actionFired = true
                         vm.executeGesture(shortName)
+                    } else if (!actionFired && !swipeDetected && !horizontalDetected &&
+                        !movedBeyondTapSlop && ev.actionMasked == MotionEvent.ACTION_UP &&
+                        System.currentTimeMillis() - downTime <= 450L) {
+                        // The overlay owns the original DOWN event. Replay a plain tap so
+                        // controls underneath the bottom gesture strip remain usable.
+                        tapAt(ev.rawX.toInt(), ev.rawY.toInt()) { }
                     }
                 }
             }
