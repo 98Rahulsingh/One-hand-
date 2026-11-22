@@ -428,10 +428,12 @@ class QuickActions(private val ctx: Context, private val perms: PermissionsManag
             val top = remembered.top.coerceIn(0, (dm.heightPixels - h).coerceAtLeast(0))
             return Rect(left, top, left + w, top + h)
         }
-        // Brand-new app: bottom-most position, with its lower edge touching the
-        // navigation-safe display edge (no arbitrary 16dp gap).
-        val left = (dm.widthPixels - w) / 2
-        val top = (dm.heightPixels - h).coerceAtLeast(0)
+        // Brand-new app: align to the lower-right, matching the user's reference
+        // placement. Keep clear of the right edge and Android navigation area.
+        val rightMargin = (24f * dm.density).toInt()
+        val bottomMargin = (36f * dm.density).toInt()
+        val left = (dm.widthPixels - w - rightMargin).coerceAtLeast(0)
+        val top = (dm.heightPixels - h - bottomMargin).coerceAtLeast(0)
         return Rect(left, top, left + w, top + h)
     }
 
