@@ -470,9 +470,14 @@ class PanelAccessibilityService : AccessibilityService() {
 
     private fun render(s: OverlayState) {
         val overlayAllowed = !s.activityVisible && !s.suspended
-        val panelNeeded = s.panelOpen || s.window != ActiveWindow.MAIN_PANEL
+        // Panel visibility is controlled by panelOpen; activeWindow can remain on a
+        // previously used tab after close and must not suppress the edge trigger.
+        val panelNeeded = s.panelOpen
         if (overlayAllowed && panelNeeded) showPanel() else hidePanel()
-        if ((overlayAllowed || s.window == ActiveWindow.PANEL_SETTINGS) && (!panelNeeded || s.window == ActiveWindow.PANEL_SETTINGS) && s.settings.isEdgeHandleEnabled) {
+        // Keep the edge trigger available after every panel is retracted.
+        // It must not depend on the previous active window (e.g. Add Item/Quick Panel).
+        val handlesAllowed = overlayAllowed && !panelNeeded && s.settings.isEdgeHandleEnabled
+        if (handlesAllowed) {
             if (s.settings.rightTriggerEnabled) showSideHandle(isRight = true, st = s.settings) else hideSideHandle(true)
             if (s.settings.leftTriggerEnabled) showSideHandle(isRight = false, st = s.settings) else hideSideHandle(false)
         } else {

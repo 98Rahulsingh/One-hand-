@@ -139,7 +139,10 @@ fun AddQuickAccessModal(
         onGeometryChange = { x, y, w, h ->
             viewModel.updateQuickAccessGeometry(x, y, w, h)
         },
-        onClose = { viewModel.navigateTo(ActiveWindow.MAIN_PANEL) },
+        onClose = {
+            viewModel.navigateTo(ActiveWindow.MAIN_PANEL)
+            viewModel.togglePanel(false)
+        },
         modifier = modifier
     ) {
         Column(

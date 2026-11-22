@@ -409,22 +409,18 @@ class QuickActions(private val ctx: Context, private val perms: PermissionsManag
         }
     }
 
-    /** Where this app's floating window opens: where it was last time, else a default spot. */
+    /** Every floating app opens at a stable configured size, centered along the bottom edge.
+     * Do not feed accessibility-observed bounds back into the next launch: OEM freeform
+     * transitions can report progressively smaller intermediate rectangles.
+     */
     private fun launchRect(pkg: String): Rect {
         val dm = ctx.resources.displayMetrics
         val settings = com.example.data.SettingsStore(ctx).load()
-        val saved = if (settings.rememberFloatingPosition) FloatingStore(ctx).get(pkg) else null
-        if (saved != null) {
-            val l = saved.left.coerceIn(0, dm.widthPixels - 200)
-            val t = saved.top.coerceIn(0, dm.heightPixels - 200)
-            val r = saved.right.coerceIn(l + 200, dm.widthPixels)
-            val b = saved.bottom.coerceIn(t + 200, dm.heightPixels)
-            return Rect(l, t, r, b)
-        }
         val w = (settings.floatingWidthDp * dm.density).toInt().coerceIn(220, dm.widthPixels - 24)
         val h = (settings.floatingLengthDp * dm.density).toInt().coerceIn(240, dm.heightPixels - 48)
         val l = (dm.widthPixels - w) / 2
-        val t = (dm.heightPixels - h - (16 * dm.density).toInt()).coerceAtLeast(0)
+        val bottomGap = (16 * dm.density).toInt()
+        val t = (dm.heightPixels - h - bottomGap).coerceAtLeast(0)
         return Rect(l, t, l + w, t + h)
     }
 
@@ -441,20 +437,20 @@ class QuickActions(private val ctx: Context, private val perms: PermissionsManag
         }
         // A new task every time, otherwise an app that is already open just comes to the front and ignores the window options
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
-        var route = "Xiaomi helper"
-        var modeCall = "n/a"
-        val bundle: Bundle = miuiFreeformBundle(pkg) ?: run {
-            route = "standard window bounds"
-            val opts = ActivityOptions.makeBasic()
-            opts.setLaunchBounds(launchRect(pkg))
-            modeCall = try { // 5 = WINDOWING_MODE_FREEFORM
-                ActivityOptions::class.java.getMethod("setLaunchWindowingMode", Int::class.javaPrimitiveType).invoke(opts, 5)
-                "ok"
-            } catch (e: Throwable) {
-                "failed (" + e.javaClass.simpleName + ")"
-            }
-            opts.toBundle()
+        val miuiOptions = miuiFreeformBundle(pkg)
+        var route = if (miuiOptions != null) "Xiaomi helper + bottom bounds" else "standard bottom bounds"
+        val opts = if (miuiOptions != null) {
+            runCatching { ActivityOptions.fromBundle(miuiOptions) }.getOrElse { ActivityOptions.makeBasic() }
+        } else ActivityOptions.makeBasic()
+        // Force the same bottom-center rectangle on every launch, including MIUI/POCO.
+        opts.setLaunchBounds(launchRect(pkg))
+        val modeCall = try { // 5 = WINDOWING_MODE_FREEFORM
+            ActivityOptions::class.java.getMethod("setLaunchWindowingMode", Int::class.javaPrimitiveType).invoke(opts, 5)
+            "ok"
+        } catch (e: Throwable) {
+            "failed (" + e.javaClass.simpleName + ")"
         }
+        val bundle: Bundle = opts.toBundle()
         // Starting from the accessibility service is allowed even when this app is in the background
         val fromService = PanelAccessibilityService.instance != null
         val starter: Context = PanelAccessibilityService.instance ?: ctx
