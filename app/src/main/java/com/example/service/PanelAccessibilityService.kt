@@ -137,6 +137,8 @@ class PanelAccessibilityService : AccessibilityService() {
     private var scope: CoroutineScope? = null
     private var rightHandleView: View? = null
     private var leftHandleView: View? = null
+    private var bottomLeftGestureView: View? = null
+    private var bottomRightGestureView: View? = null
     private var panelView: ComposeView? = null
 
     private val vm get() = (application as OneHandApplication).viewModel
@@ -477,7 +479,7 @@ class PanelAccessibilityService : AccessibilityService() {
     private fun teardown() {
         instance = null
         scope?.cancel(); scope = null
-        hidePanel(); hideHandle(); hideTrackLayer()
+        hidePanel(); hideHandle(); hideBottomGestureZones(); hideTrackLayer()
         owner?.stop(); owner = null
     }
 
@@ -490,6 +492,12 @@ class PanelAccessibilityService : AccessibilityService() {
         // Keep the edge trigger available after every panel is retracted.
         // It must not depend on the previous active window (e.g. Add Item/Quick Panel).
         val handlesAllowed = overlayAllowed && !panelNeeded && s.settings.isEdgeHandleEnabled
+        if (overlayAllowed && s.settings.oneHandModeEnabled) {
+            showBottomGestureZone(isLeft = true)
+            showBottomGestureZone(isLeft = false)
+        } else {
+            hideBottomGestureZones()
+        }
         if (handlesAllowed) {
             if (s.settings.rightTriggerEnabled) showSideHandle(isRight = true, st = s.settings) else hideSideHandle(true)
             if (s.settings.leftTriggerEnabled) showSideHandle(isRight = false, st = s.settings) else hideSideHandle(false)
@@ -542,7 +550,8 @@ class PanelAccessibilityService : AccessibilityService() {
                     val held = System.currentTimeMillis() - downTime > 380L
                     if (!fired && inward > dp(24f)) {
                         fired = true
-                        if (held && st.gestureBindings.containsKey("Swipe Inward Hold")) vm.executeGesture("Swipe Inward Hold")
+                        if (isRight) vm.executeGesture(if (held) "Right Pull Inward Hold" else "Right Pull Inward")
+                        else if (held && st.gestureBindings.containsKey("Swipe Inward Hold")) vm.executeGesture("Swipe Inward Hold")
                         else if (st.gestureBindings.containsKey("Swipe Inward")) vm.executeGesture("Swipe Inward")
                         else openPanel()
                     } else if (!fired && dy < -dp(36f)) {
@@ -573,6 +582,53 @@ class PanelAccessibilityService : AccessibilityService() {
         }
         wm.addView(v, lp)
         if (isRight) rightHandleView = v else leftHandleView = v
+    }
+
+
+    private fun showBottomGestureZone(isLeft: Boolean) {
+        val current = if (isLeft) bottomLeftGestureView else bottomRightGestureView
+        if (current != null) return
+        val zone = View(this).apply { setBackgroundColor(Color.TRANSPARENT) }
+        val lp = WindowManager.LayoutParams(
+            dp(86f), dp(42f), WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.BOTTOM or (if (isLeft) Gravity.START else Gravity.END)
+            y = dp(4f)
+        }
+        var downY = 0f
+        var downTime = 0L
+        var fired = false
+        zone.setOnTouchListener { _, ev ->
+            when (ev.actionMasked) {
+                MotionEvent.ACTION_DOWN -> { downY = ev.rawY; downTime = System.currentTimeMillis(); fired = false }
+                MotionEvent.ACTION_MOVE -> {
+                    if (!fired && downY - ev.rawY > dp(24f)) {
+                        fired = true
+                        val held = System.currentTimeMillis() - downTime > 380L
+                        val name = if (isLeft) {
+                            if (held) "Bottom Left Swipe Up Hold" else "Bottom Left Swipe Up"
+                        } else {
+                            if (held) "Bottom Right Swipe Up Hold" else "Bottom Right Swipe Up"
+                        }
+                        vm.executeGesture(name)
+                    }
+                }
+            }
+            true
+        }
+        runCatching { wm.addView(zone, lp) }.onSuccess {
+            if (isLeft) bottomLeftGestureView = zone else bottomRightGestureView = zone
+        }
+    }
+
+    private fun hideBottomGestureZones() {
+        bottomLeftGestureView?.let { runCatching { wm.removeView(it) } }
+        bottomRightGestureView?.let { runCatching { wm.removeView(it) } }
+        bottomLeftGestureView = null
+        bottomRightGestureView = null
     }
 
     private fun hideSideHandle(isRight: Boolean) {

@@ -32,7 +32,13 @@ private val GestureItems = listOf(
     "Swipe Inward Hold",
     "Single Tap",
     "Double Tap",
-    "Long Press"
+    "Long Press",
+    "Bottom Left Swipe Up",
+    "Bottom Left Swipe Up Hold",
+    "Bottom Right Swipe Up",
+    "Bottom Right Swipe Up Hold",
+    "Right Pull Inward",
+    "Right Pull Inward Hold"
 )
 
 @Composable
@@ -159,36 +165,6 @@ fun PanelSettingsWindow(
                 }
             }
 
-            // 4. GESTURE CONTROLS
-            item {
-                SlimCollapsibleSection("Gesture Controls", "Gesture Controls" in expanded, { toggleSec("Gesture Controls") }) {
-                    GestureItems.forEach { g ->
-                        val bound = s.gestureBindings[g] ?: "None"
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0xFF0E2329), RoundedCornerShape(6.dp))
-                                .padding(horizontal = 6.dp, vertical = 3.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(g, color = Color(0xFFE0F7FA), fontSize = 10.sp, fontWeight = FontWeight.Medium)
-                                Text(if (bound == "None") "Unassigned" else bound, color = if (bound == "None") Color(0xFF64748B) else Color(0xFF00E5FF), fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                            Text(
-                                text = if (bound == "None") "+ Add Item" else "Change ($bound)",
-                                color = Color(0xFF00E5FF),
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.clickable { viewModel.startBindGesture(g) }
-                            )
-                        }
-                    }
-                }
-            }
-
             // 5. FLOATING WINDOW SIZE
             item {
                 SlimCollapsibleSection("Floating Window Size", "Floating Window Size" in expanded, { toggleSec("Floating Window Size") }) {
@@ -236,7 +212,8 @@ fun PanelSettingsWindow(
 
             // 7. ONE HAND CONTROL (4.0" Mini Display + OLED Black Battery Saver)
             item {
-                SlimCollapsibleSection("One Hand Control", "One Hand Control" in expanded, { toggleSec("One Hand Control") }) {
+                SlimCollapsibleSection("One Hand Mode Settings", "One Hand Mode Settings" in expanded, { toggleSec("One Hand Mode Settings") }) {
+                    SlimCollapsibleSection("Look Settings", "Look Settings" in expanded, { toggleSec("Look Settings") }) {
                     SlimSwitch("Enable One Hand Mode", s.oneHandModeEnabled) {
                         viewModel.updateSettings { cur -> cur.copy(oneHandModeEnabled = it) }
                     }
@@ -291,6 +268,27 @@ fun PanelSettingsWindow(
                     }
                     SlimSwitch("Sync with Edge Panel", s.syncWithEdgePanel) {
                         viewModel.updateSettings { cur -> cur.copy(syncWithEdgePanel = it) }
+                    }
+                    }
+                    SlimCollapsibleSection("Gesture Settings", "Gesture Settings" in expanded, { toggleSec("Gesture Settings") }) {
+                        GestureItems.forEach { g ->
+                            val bound = s.gestureBindings[g] ?: "None"
+                            Column(
+                                modifier = Modifier.fillMaxWidth()
+                                    .background(Color(0xFF0E2329), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 6.dp, vertical = 3.dp)
+                            ) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text(g, color = Color(0xFFE0F7FA), fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                                    Text(if (bound == "None") "Default" else bound,
+                                        color = if (bound == "None") Color(0xFF64748B) else Color(0xFF00E5FF),
+                                        fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
+                                }
+                                Text(if (bound == "None") "+ Add Item" else "Change ($bound)",
+                                    color = Color(0xFF00E5FF), fontSize = 9.sp, fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.clickable { viewModel.startBindGesture(g) })
+                            }
+                        }
                     }
                 }
             }

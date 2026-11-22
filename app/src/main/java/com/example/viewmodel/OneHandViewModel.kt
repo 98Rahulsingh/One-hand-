@@ -137,38 +137,10 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
     fun isAwaitingPermissionReturn(): Boolean = _awaitingPermissionReturn.value
     fun clearAwaitingPermissionReturn() { _awaitingPermissionReturn.value = false }
 
+    // One Hand Mode is custom UI only. Never enable or broadcast Android/MIUI native
+    // one-handed mode; the mini-display implementation is owned by this app.
     fun updateSettings(transform: (PanelSettings) -> PanelSettings) {
-        val prev = _panelSettings.value
         _panelSettings.update(transform)
-        val next = _panelSettings.value
-        if (prev.oneHandModeEnabled != next.oneHandModeEnabled ||
-            prev.oneHandSize != next.oneHandSize ||
-            prev.oneHandCornerRight != next.oneHandCornerRight) {
-            applySystemOneHandedMode(next)
-        }
-    }
-
-    private fun applySystemOneHandedMode(s: PanelSettings) {
-        if (!perms.hasSecureSettings()) return
-        try {
-            val cr = appContext.contentResolver
-            val sizeInt = when (s.oneHandSize) {
-                3.5f -> 35
-                4.5f -> 45
-                else -> 40
-            }
-            // Xiaomi / Poco MIUI / HyperOS native 3.5" / 4.0" / 4.5" One-Handed Mode
-            android.provider.Settings.Global.putInt(cr, "handy_mode_size", sizeInt)
-            android.provider.Settings.Global.putInt(cr, "handy_mode_state", if (s.oneHandModeEnabled) (if (s.oneHandCornerRight) 2 else 1) else 0)
-            // Android 12+ AOSP One-Handed Mode
-            android.provider.Settings.Secure.putInt(cr, "one_handed_mode_enabled", 1)
-            android.provider.Settings.Secure.putInt(cr, "one_handed_mode_activated", if (s.oneHandModeEnabled) 1 else 0)
-            runCatching {
-                appContext.sendBroadcast(android.content.Intent("miui.intent.action.CHANGE_HANDY_MODE_STATE").apply {
-                    putExtra("state", if (s.oneHandModeEnabled) (if (s.oneHandCornerRight) 2 else 1) else 0)
-                })
-            }
-        } catch (_: Throwable) {}
     }
 
     private val _pendingGesture = MutableStateFlow<String?>(null)
@@ -219,6 +191,30 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
     fun executeGesture(gestureName: String) {
         val label = _panelSettings.value.gestureBindings[gestureName]
         if (label.isNullOrBlank()) {
+            val defaultAction = when (gestureName) {
+                "Bottom Left Swipe Up" -> "notifications_quick_settings_placeholder"
+                "Bottom Left Swipe Up Hold" -> "notifications"
+                "Bottom Right Swipe Up" -> "recent_apps_placeholder"
+                "Bottom Right Swipe Up Hold" -> "prev_app"
+                "Right Pull Inward" -> "back"
+                "Right Pull Inward Hold" -> "home"
+                else -> null
+            }
+            if (defaultAction != null) {
+                val result = when (defaultAction) {
+                    "notifications_quick_settings_placeholder" -> {
+                        val ok = PanelAccessibilityService.global(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS)
+                        com.example.system.ActionResult(if (ok) "Quick Settings" else "Quick Settings needs Accessibility")
+                    }
+                    "recent_apps_placeholder" -> {
+                        val ok = PanelAccessibilityService.global(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_RECENTS)
+                        com.example.system.ActionResult(if (ok) "Recent Apps" else "Recent Apps needs Accessibility")
+                    }
+                    else -> actions.perform(defaultAction)
+                }
+                showToast(result.message)
+                return
+            }
             navigateTo(ActiveWindow.MAIN_PANEL)
             togglePanel(true)
             return
