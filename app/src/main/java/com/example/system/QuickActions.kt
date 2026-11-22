@@ -409,19 +409,30 @@ class QuickActions(private val ctx: Context, private val perms: PermissionsManag
         }
     }
 
-    /** Every floating app opens at a stable configured size, centered along the bottom edge.
-     * Do not feed accessibility-observed bounds back into the next launch: OEM freeform
-     * transitions can report progressively smaller intermediate rectangles.
+    /**
+     * First launch: place the new floating app at the bottom edge, just above
+     * Android navigation controls. Re-launch: restore the last observed closed
+     * position for this package. Keep configured dimensions stable; never reuse
+     * an OEM's transient/shrunken window size.
      */
     private fun launchRect(pkg: String): Rect {
         val dm = ctx.resources.displayMetrics
         val settings = com.example.data.SettingsStore(ctx).load()
-        val w = (settings.floatingWidthDp * dm.density).toInt().coerceIn(220, dm.widthPixels - 24)
-        val h = (settings.floatingLengthDp * dm.density).toInt().coerceIn(240, dm.heightPixels - 48)
-        val l = (dm.widthPixels - w) / 2
-        val bottomGap = (16 * dm.density).toInt()
-        val t = (dm.heightPixels - h - bottomGap).coerceAtLeast(0)
-        return Rect(l, t, l + w, t + h)
+        val maxW = (dm.widthPixels - 24).coerceAtLeast(220)
+        val maxH = (dm.heightPixels - 24).coerceAtLeast(240)
+        val w = (settings.floatingWidthDp * dm.density).toInt().coerceIn(220, maxW)
+        val h = (settings.floatingLengthDp * dm.density).toInt().coerceIn(240, maxH)
+        val remembered = FloatingStore(ctx).get(pkg)
+        if (remembered != null) {
+            val left = remembered.left.coerceIn(0, (dm.widthPixels - w).coerceAtLeast(0))
+            val top = remembered.top.coerceIn(0, (dm.heightPixels - h).coerceAtLeast(0))
+            return Rect(left, top, left + w, top + h)
+        }
+        // Brand-new app: bottom-most position, with its lower edge touching the
+        // navigation-safe display edge (no arbitrary 16dp gap).
+        val left = (dm.widthPixels - w) / 2
+        val top = (dm.heightPixels - h).coerceAtLeast(0)
+        return Rect(left, top, left + w, top + h)
     }
 
     /** Opens an installed app in a small floating window (if the phone has freeform windows turned on). */
