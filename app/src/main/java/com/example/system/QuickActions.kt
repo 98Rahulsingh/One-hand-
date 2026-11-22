@@ -437,12 +437,11 @@ class QuickActions(private val ctx: Context, private val perms: PermissionsManag
         }
         // A new task every time, otherwise an app that is already open just comes to the front and ignores the window options
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
-        val miuiOptions = miuiFreeformBundle(pkg)
-        var route = if (miuiOptions != null) "Xiaomi helper + bottom bounds" else "standard bottom bounds"
-        val opts = if (miuiOptions != null) {
-            runCatching { ActivityOptions.fromBundle(miuiOptions) }.getOrElse { ActivityOptions.makeBasic() }
-        } else ActivityOptions.makeBasic()
-        // Force the same bottom-center rectangle on every launch, including MIUI/POCO.
+        // Use the public ActivityOptions builder directly. The Xiaomi helper returns a
+        // Bundle, but ActivityOptions.fromBundle is not available in this compile SDK.
+        // Stable launch bounds are applied on every launch so the window cannot shrink.
+        val route = "standard bottom bounds"
+        val opts = ActivityOptions.makeBasic()
         opts.setLaunchBounds(launchRect(pkg))
         val modeCall = try { // 5 = WINDOWING_MODE_FREEFORM
             ActivityOptions::class.java.getMethod("setLaunchWindowingMode", Int::class.javaPrimitiveType).invoke(opts, 5)
