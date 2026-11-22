@@ -48,9 +48,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.awaitEachGesture
-import androidx.compose.ui.input.pointer.awaitFirstDown
-import androidx.compose.ui.input.pointer.awaitPointerEvent
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -146,7 +145,10 @@ fun OneHandApp(
                         } while (event.changes.any { it.id == down.id && it.pressed })
                         val threshold = 72.dp.toPx()
                         if (kotlin.math.abs(dx) > threshold && kotlin.math.abs(dx) > kotlin.math.abs(dy) * 1.25f) {
-                            viewModel.executeGesture(if (dx < 0f) "Mini Display Swipe Left" else "Mini Display Swipe Right")
+                            // The mini-display is split at its own midpoint: the entire left half
+                            // belongs to Left Swipe and the entire right half belongs to Right Swipe.
+                            val startedOnLeftHalf = down.position.x < size.width / 2f
+                            viewModel.executeGesture(if (startedOnLeftHalf) "Mini Display Swipe Left" else "Mini Display Swipe Right")
                         }
                     }
                 } else Modifier
