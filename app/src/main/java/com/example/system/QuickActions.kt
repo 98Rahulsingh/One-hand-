@@ -450,19 +450,34 @@ class QuickActions(private val ctx: Context, private val perms: PermissionsManag
         }
         // A new task every time, otherwise an app that is already open just comes to the front and ignores the window options
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
-        // Use the public ActivityOptions builder directly. The Xiaomi helper returns a
-        // Bundle, but ActivityOptions.fromBundle is not available in this compile SDK.
-        // Stable launch bounds are applied on every launch so the window cannot shrink.
-        val route = "standard bottom bounds"
+        // Always calculate our requested position/size. On Xiaomi/POCO, prefer
+        // HyperOS' own freeform options because standard Android launch bounds
+        // alone may be ignored by the vendor multi-window manager.
+        val bounds = launchRect(pkg)
         val opts = ActivityOptions.makeBasic()
-        opts.setLaunchBounds(launchRect(pkg))
-        val modeCall = try { // 5 = WINDOWING_MODE_FREEFORM
-            ActivityOptions::class.java.getMethod("setLaunchWindowingMode", Int::class.javaPrimitiveType).invoke(opts, 5)
-            "ok"
-        } catch (e: Throwable) {
-            "failed (" + e.javaClass.simpleName + ")"
-        }
+        opts.setLaunchBounds(bounds)
         val bundle: Bundle = opts.toBundle()
+        val miuiBundle = miuiFreeformBundle(pkg)
+        val route: String
+        val modeCall: String
+        if (miuiBundle != null) {
+            modeCall = "vendor helper"
+            // Keep the standard launch-bounds entry while adding HyperOS freeform
+            // window-mode flags from its supported helper.
+            bundle.putAll(miuiBundle)
+            // Re-apply bounds last so the saved/default rectangle remains our target.
+            val bounded = ActivityOptions.makeBasic()
+            bounded.setLaunchBounds(bounds)
+            val requestedBounds = bounded.toBundle()
+            bundle.putAll(requestedBounds)
+            route = "Xiaomi HyperOS freeform + requested bounds"
+        } else {
+            route = "standard Android freeform bounds"
+            modeCall = try { // 5 = WINDOWING_MODE_FREEFORM
+                ActivityOptions::class.java.getMethod("setLaunchWindowingMode", Int::class.javaPrimitiveType).invoke(opts, 5)
+                "ok"
+            } catch (e: Throwable) { "failed (" + e.javaClass.simpleName + ")" }
+        }
         // Starting from the accessibility service is allowed even when this app is in the background
         val fromService = PanelAccessibilityService.instance != null
         val starter: Context = PanelAccessibilityService.instance ?: ctx
