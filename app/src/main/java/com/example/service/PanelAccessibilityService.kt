@@ -611,27 +611,38 @@ class PanelAccessibilityService : AccessibilityService() {
             y = zoneY
         }
 
+        var downX = 0f
         var downY = 0f
         var downTime = 0L
         var swipeDetected = false
+        var horizontalDetected = false
         var actionFired = false
         var released = false
         var holdRunnable: Runnable? = null
         val shortName = if (isLeft) "Bottom Left Swipe Up" else "Bottom Right Swipe Up"
         val holdName = if (isLeft) "Bottom Left Swipe Up Hold" else "Bottom Right Swipe Up Hold"
+        val horizontalName = if (isLeft) "Mini Display Swipe Left" else "Mini Display Swipe Right"
 
         zone.setOnTouchListener { _, ev ->
             when (ev.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     holdRunnable?.let { mainHandler.removeCallbacks(it) }
+                    downX = ev.rawX
                     downY = ev.rawY
                     downTime = System.currentTimeMillis()
                     swipeDetected = false
+                    horizontalDetected = false
                     actionFired = false
                     released = false
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    if (!swipeDetected && downY - ev.rawY > dp(24f)) {
+                    val horizontalDistance = abs(ev.rawX - downX)
+                    if (!horizontalDetected && horizontalDistance > dp(24f)) {
+                        horizontalDetected = true
+                        actionFired = true
+                        // Middle third runs the old left-side action; right third runs the old right-side action.
+                        vm.executeGesture(horizontalName)
+                    } else if (!horizontalDetected && !swipeDetected && downY - ev.rawY > dp(24f)) {
                         swipeDetected = true
                         val waitMs = (450L - (System.currentTimeMillis() - downTime)).coerceAtLeast(0L)
                         holdRunnable = Runnable {
