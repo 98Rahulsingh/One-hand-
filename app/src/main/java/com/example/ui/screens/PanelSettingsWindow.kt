@@ -37,6 +37,8 @@ private val GestureItems = listOf(
     "Bottom Left Swipe Up Hold",
     "Bottom Right Swipe Up",
     "Bottom Right Swipe Up Hold",
+    "Mini Display Swipe Left",
+    "Mini Display Swipe Right",
     "Right Pull Inward",
     "Right Pull Inward Hold"
 )

@@ -196,6 +196,8 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
                 "Bottom Left Swipe Up Hold" -> "notifications"
                 "Bottom Right Swipe Up" -> "recent_apps_placeholder"
                 "Bottom Right Swipe Up Hold" -> "prev_app"
+                "Mini Display Swipe Left" -> "quick_panel"
+                "Mini Display Swipe Right" -> "main_panel"
                 "Right Pull Inward" -> "back"
                 "Right Pull Inward Hold" -> "home"
                 else -> null
@@ -209,6 +211,14 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
                     "recent_apps_placeholder" -> {
                         val ok = PanelAccessibilityService.global(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_RECENTS)
                         com.example.system.ActionResult(if (ok) "Recent Apps" else "Recent Apps needs Accessibility")
+                    }
+                    "quick_panel" -> {
+                        navigateTo(ActiveWindow.QUICK_PANEL); togglePanel(true)
+                        com.example.system.ActionResult("Quick Panel")
+                    }
+                    "main_panel" -> {
+                        navigateTo(ActiveWindow.MAIN_PANEL); togglePanel(true)
+                        com.example.system.ActionResult("Edge Panel Groups")
                     }
                     else -> actions.perform(defaultAction)
                 }

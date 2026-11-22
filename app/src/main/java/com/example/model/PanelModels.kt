@@ -137,6 +137,7 @@ data class PanelSettings(
     val rememberFloatingPosition: Boolean = true,
     val openFloatingAppsBottomDown: Boolean = true,
     val oneHandModeEnabled: Boolean = false,
+    val oneHandLocked: Boolean = false,
     val oneHandSize: Float = 4.0f,
     val oneHandCornerRight: Boolean = true,
     val oneHandOledBlack: Boolean = true,

@@ -491,7 +491,7 @@ class PanelAccessibilityService : AccessibilityService() {
         if (overlayAllowed && panelNeeded) showPanel() else hidePanel()
         // Keep the edge trigger available after every panel is retracted.
         // It must not depend on the previous active window (e.g. Add Item/Quick Panel).
-        val handlesAllowed = overlayAllowed && !panelNeeded && s.settings.isEdgeHandleEnabled
+        val handlesAllowed = overlayAllowed && !panelNeeded && s.settings.isEdgeHandleEnabled && !s.settings.oneHandModeEnabled
         if (overlayAllowed && s.settings.oneHandModeEnabled) {
             showBottomGestureZone(isLeft = true)
             showBottomGestureZone(isLeft = false)
@@ -588,32 +588,74 @@ class PanelAccessibilityService : AccessibilityService() {
     private fun showBottomGestureZone(isLeft: Boolean) {
         val current = if (isLeft) bottomLeftGestureView else bottomRightGestureView
         if (current != null) return
+
+        // Gesture hit areas are calculated from the custom mini-display bounds,
+        // not from the physical screen's corners.
+        val dm = resources.displayMetrics
+        val scale = when (vm.panelSettings.value.oneHandSize) {
+            3.5f -> 0.56f
+            4.5f -> 0.72f
+            else -> 0.64f
+        }
+        val miniWidth = (dm.widthPixels * scale).toInt()
+        val miniHeight = (dm.heightPixels * scale).toInt()
+        val miniLeft = if (vm.panelSettings.value.oneHandCornerRight) dm.widthPixels - miniWidth else 0
+        val miniTop = dm.heightPixels - miniHeight
+        val zoneWidth = miniWidth / 2
+        val zoneHeight = dp(48f)
+        val zoneX = miniLeft + if (isLeft) 0 else miniWidth - zoneWidth
+        val zoneY = miniTop + miniHeight - zoneHeight
+
         val zone = View(this).apply { setBackgroundColor(Color.TRANSPARENT) }
         val lp = WindowManager.LayoutParams(
-            dp(86f), dp(42f), WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            zoneWidth, zoneHeight, WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
         ).apply {
-            gravity = Gravity.BOTTOM or (if (isLeft) Gravity.START else Gravity.END)
-            y = dp(4f)
+            gravity = Gravity.TOP or Gravity.START
+            x = zoneX
+            y = zoneY
         }
+
         var downY = 0f
         var downTime = 0L
-        var fired = false
+        var swipeDetected = false
+        var actionFired = false
+        var released = false
+        var holdRunnable: Runnable? = null
+        val shortName = if (isLeft) "Bottom Left Swipe Up" else "Bottom Right Swipe Up"
+        val holdName = if (isLeft) "Bottom Left Swipe Up Hold" else "Bottom Right Swipe Up Hold"
+
         zone.setOnTouchListener { _, ev ->
             when (ev.actionMasked) {
-                MotionEvent.ACTION_DOWN -> { downY = ev.rawY; downTime = System.currentTimeMillis(); fired = false }
+                MotionEvent.ACTION_DOWN -> {
+                    holdRunnable?.let { mainHandler.removeCallbacks(it) }
+                    downY = ev.rawY
+                    downTime = System.currentTimeMillis()
+                    swipeDetected = false
+                    actionFired = false
+                    released = false
+                }
                 MotionEvent.ACTION_MOVE -> {
-                    if (!fired && downY - ev.rawY > dp(24f)) {
-                        fired = true
-                        val held = System.currentTimeMillis() - downTime > 380L
-                        val name = if (isLeft) {
-                            if (held) "Bottom Left Swipe Up Hold" else "Bottom Left Swipe Up"
-                        } else {
-                            if (held) "Bottom Right Swipe Up Hold" else "Bottom Right Swipe Up"
+                    if (!swipeDetected && downY - ev.rawY > dp(24f)) {
+                        swipeDetected = true
+                        val waitMs = (450L - (System.currentTimeMillis() - downTime)).coerceAtLeast(0L)
+                        holdRunnable = Runnable {
+                            if (swipeDetected && !released && !actionFired) {
+                                actionFired = true
+                                vm.executeGesture(holdName)
+                            }
                         }
-                        vm.executeGesture(name)
+                        mainHandler.postDelayed(holdRunnable!!, waitMs)
+                    }
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    released = true
+                    holdRunnable?.let { mainHandler.removeCallbacks(it) }
+                    if (swipeDetected && !actionFired && ev.actionMasked == MotionEvent.ACTION_UP) {
+                        actionFired = true
+                        vm.executeGesture(shortName)
                     }
                 }
             }
