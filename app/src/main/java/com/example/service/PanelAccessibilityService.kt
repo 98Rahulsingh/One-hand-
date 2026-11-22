@@ -491,8 +491,8 @@ class PanelAccessibilityService : AccessibilityService() {
         if (overlayAllowed && panelNeeded) showPanel() else hidePanel()
         // Keep the edge trigger available after every panel is retracted.
         // It must not depend on the previous active window (e.g. Add Item/Quick Panel).
-        val handlesAllowed = overlayAllowed && !panelNeeded && s.settings.isEdgeHandleEnabled && !s.settings.oneHandModeEnabled
-        if (overlayAllowed && s.settings.oneHandModeEnabled) {
+        val handlesAllowed = overlayAllowed && !panelNeeded && s.settings.isEdgeHandleEnabled
+        if (overlayAllowed && !panelNeeded) {
             showBottomGestureZone(isLeft = true)
             showBottomGestureZone(isLeft = false)
         } else {
@@ -589,22 +589,15 @@ class PanelAccessibilityService : AccessibilityService() {
         val current = if (isLeft) bottomLeftGestureView else bottomRightGestureView
         if (current != null) return
 
-        // Gesture hit areas are calculated from the custom mini-display bounds,
-        // not from the physical screen's corners.
+        // Divide the physical display width into three equal columns:
+        // left column remains free, the left gesture occupies the middle,
+        // and the right gesture occupies the right column.
         val dm = resources.displayMetrics
-        val scale = when (vm.panelSettings.value.oneHandSize) {
-            3.5f -> 0.56f
-            4.5f -> 0.72f
-            else -> 0.64f
-        }
-        val miniWidth = (dm.widthPixels * scale).toInt()
-        val miniHeight = (dm.heightPixels * scale).toInt()
-        val miniLeft = if (vm.panelSettings.value.oneHandCornerRight) dm.widthPixels - miniWidth else 0
-        val miniTop = dm.heightPixels - miniHeight
-        val zoneWidth = miniWidth / 2
+        val third = dm.widthPixels / 3
+        val zoneWidth = if (isLeft) third else dm.widthPixels - (third * 2)
+        val zoneX = if (isLeft) third else third * 2
         val zoneHeight = dp(48f)
-        val zoneX = miniLeft + if (isLeft) 0 else miniWidth - zoneWidth
-        val zoneY = miniTop + miniHeight - zoneHeight
+        val zoneY = dm.heightPixels - zoneHeight
 
         val zone = View(this).apply { setBackgroundColor(Color.TRANSPARENT) }
         val lp = WindowManager.LayoutParams(

@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -76,7 +77,7 @@ fun OneHandApp(
     val toastMessage by viewModel.toastMessage.collectAsState()
 
     // Proper Back Navigation
-    if (!overlayMode) BackHandler(enabled = !panelSettings.oneHandModeEnabled || !panelSettings.oneHandLocked) {
+    if (!overlayMode) BackHandler {
         when {
             activeWindow != ActiveWindow.MAIN_PANEL -> {
                 viewModel.navigateTo(ActiveWindow.MAIN_PANEL)
@@ -90,19 +91,9 @@ fun OneHandApp(
         }
     }
 
-    val oneHandScale = when (panelSettings.oneHandSize) {
-        3.5f -> 0.56f
-        4.5f -> 0.72f
-        else -> 0.64f // 4.0" full mobile mini-display
-    }
     Box(
         modifier = modifier
             .fillMaxSize()
-            .then(
-                if (panelSettings.oneHandModeEnabled)
-                    Modifier.background(Color.Black)
-                else Modifier
-            )
             .then(
                 if (overlayMode) Modifier else Modifier
                     .background(
@@ -118,43 +109,7 @@ fun OneHandApp(
             )
             .testTag("one_hand_app_root")
     ) {
-        val oneHandInnerModifier = if (panelSettings.oneHandModeEnabled) {
-            Modifier
-                .align(if (panelSettings.oneHandCornerRight) Alignment.BottomEnd else Alignment.BottomStart)
-                .fillMaxWidth(oneHandScale)
-                .fillMaxHeight(oneHandScale)
-                .border(1.dp, Color(0xFF1E4E59), RoundedCornerShape(14.dp))
-                .clip(RoundedCornerShape(14.dp))
-        } else {
-            Modifier.fillMaxSize()
-        }
-        Box(
-            modifier = oneHandInnerModifier.then(
-                if (panelSettings.oneHandModeEnabled) Modifier.pointerInput(panelSettings.oneHandModeEnabled) {
-                    var dragDistance = 0f
-                    var startedOnLeftHalf = false
-                    var actionFired = false
-                    detectHorizontalDragGestures(
-                        onDragStart = { start ->
-                            // Use the mini-display's midpoint, not the physical screen midpoint.
-                            startedOnLeftHalf = start.x < size.width / 2f
-                            dragDistance = 0f
-                            actionFired = false
-                        },
-                        onHorizontalDrag = { change, amount ->
-                            dragDistance += kotlin.math.abs(amount)
-                            if (!actionFired && dragDistance >= 72.dp.toPx()) {
-                                actionFired = true
-                                viewModel.executeGesture(
-                                    if (startedOnLeftHalf) "Mini Display Swipe Left" else "Mini Display Swipe Right"
-                                )
-                            }
-                            change.consume()
-                        }
-                    )
-                } else Modifier
-            )
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
         // Simulated system home screen canvas underneath
         if (overlayMode) {
             // Tap outside the windows closes the panel and shows the app underneath again
@@ -175,33 +130,8 @@ fun OneHandApp(
             )
         }
 
-        // One Hand Mode lock is independent from the Edge Panel trigger. It stays
-        // inside the mini-display at its bottom-left corner.
-        if (!overlayMode && panelSettings.oneHandModeEnabled) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(7.dp)
-                    .size(30.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xDD102A31))
-                    .border(1.dp, Color(0xFF00BCD4), CircleShape)
-                    .clickable {
-                        viewModel.updateSettings { cur -> cur.copy(oneHandLocked = !cur.oneHandLocked) }
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = if (panelSettings.oneHandLocked) Icons.Default.Lock else Icons.Default.LockOpen,
-                    contentDescription = if (panelSettings.oneHandLocked) "Unlock One Hand Mode" else "Lock One Hand Mode",
-                    tint = Color(0xFFE0F7FA),
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-        }
-
         // Floating Edge Trigger Handle visible when enabled and panel is retracted or in background
-        if (!overlayMode && !panelSettings.oneHandModeEnabled && panelSettings.isEdgeHandleEnabled && (!isPanelOpen || activeWindow == ActiveWindow.PANEL_SETTINGS)) {
+        if (!overlayMode && panelSettings.isEdgeHandleEnabled && (!isPanelOpen || activeWindow == ActiveWindow.PANEL_SETTINGS)) {
             EdgeTriggerHandle(
                 isRightEdge = panelSettings.isRightEdge,
                 verticalOffsetPercent = panelSettings.verticalPosition / 10f,
@@ -271,10 +201,30 @@ fun OneHandApp(
         }
 
         // Window 4: Panel Settings & Permissions (Matching Image 2)
+        val screenHeightDp = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp
+        val settingsPanelHeightDp = (screenHeightDp * panelSettings.panelHeightPercent / 100f)
+            .coerceIn(220f, screenHeightDp.toFloat())
+        val settingsHorizontalOffset = (panelSettings.horizontalOffset * 3.5f).dp
+        val settingsVerticalOffset = ((panelSettings.verticalPosition - 5) * 45 + panelSettings.verticalOffsetDp).dp
+        val settingsCorner = (panelSettings.roundedCorners * 3.2f).dp
+        val settingsShape = if (panelSettings.isRightEdge) {
+            RoundedCornerShape(topStart = settingsCorner, bottomStart = settingsCorner, topEnd = 0.dp, bottomEnd = 0.dp)
+        } else {
+            RoundedCornerShape(topStart = 0.dp, bottomStart = 0.dp, topEnd = settingsCorner, bottomEnd = settingsCorner)
+        }
         AnimatedVisibility(
             visible = (activeWindow == ActiveWindow.PANEL_SETTINGS),
-            enter = fadeIn() + slideInHorizontally { -it },
-            exit = fadeOut() + slideOutHorizontally { -it }
+            enter = fadeIn() + slideInHorizontally { if (panelSettings.isRightEdge) it else -it },
+            exit = fadeOut() + slideOutHorizontally { if (panelSettings.isRightEdge) it else -it },
+            modifier = Modifier
+                .align(if (panelSettings.isRightEdge) Alignment.CenterEnd else Alignment.CenterStart)
+                .offset(
+                    x = if (panelSettings.isRightEdge) -settingsHorizontalOffset else settingsHorizontalOffset,
+                    y = settingsVerticalOffset
+                )
+                .width(panelSettings.panelWidthDp.dp)
+                .height(settingsPanelHeightDp.dp)
+                .clip(settingsShape)
         ) {
             PanelSettingsWindow(viewModel = viewModel)
         }
@@ -378,7 +328,7 @@ fun HomeScreenBackdrop(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Tap or swipe the cyan edge handle on the side, or tap here to open the one-hand panel.",
+                            text = "Tap or swipe the cyan edge handle on the side, or tap here to open the Edge Panel.",
                             color = Color(0xFF80DEEA).copy(alpha = 0.8f),
                             fontSize = 11.sp,
                             lineHeight = 15.sp

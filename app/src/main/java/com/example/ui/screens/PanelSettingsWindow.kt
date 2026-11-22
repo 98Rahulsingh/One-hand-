@@ -89,7 +89,7 @@ fun PanelSettingsWindow(
                 Text("Settings", color = Color(0xFFE0F7FA), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
             }
             Text(
-                text = if (s.oneHandSize == 4.0f) "4.0 Full" else "${s.oneHandSize}",
+                text = "GESTURES",
                 color = Color(0xFF00E5FF),
                 fontSize = 10.sp
             )
@@ -212,84 +212,25 @@ fun PanelSettingsWindow(
                 }
             }
 
-            // 7. ONE HAND CONTROL (4.0" Mini Display + OLED Black Battery Saver)
+            // One Hand gesture bindings remain available without the mini-display mode.
             item {
-                SlimCollapsibleSection("One Hand Mode Settings", "One Hand Mode Settings" in expanded, { toggleSec("One Hand Mode Settings") }) {
-                    SlimCollapsibleSection("Look Settings", "Look Settings" in expanded, { toggleSec("Look Settings") }) {
-                    SlimSwitch("Enable One Hand Mode", s.oneHandModeEnabled) {
-                        viewModel.updateSettings { cur -> cur.copy(oneHandModeEnabled = it) }
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Mini Display:", color = Color(0xFF80DEEA), fontSize = 10.sp)
-                        listOf(3.5f, 4.0f, 4.5f).forEach { sz ->
-                            val active = s.oneHandSize == sz
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(if (active) Color(0xFF00BCD4) else Color(0xFF102A31))
-                                    .clickable { viewModel.updateSettings { cur -> cur.copy(oneHandSize = sz) } }
-                                    .padding(horizontal = 8.dp, vertical = 3.dp)
-                            ) {
-                                Text(
-                                    text = if (sz == 4.0f) "4.0\" (Full)" else "${sz}\"",
-                                    color = Color.White,
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
+                SlimCollapsibleSection("One Hand Mode Gestures", "One Hand Mode Gestures" in expanded, { toggleSec("One Hand Mode Gestures") }) {
+                    GestureItems.forEach { g ->
+                        val bound = s.gestureBindings[g] ?: "None"
+                        Column(
+                            modifier = Modifier.fillMaxWidth()
+                                .background(Color(0xFF0E2329), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 6.dp, vertical = 3.dp)
+                        ) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(g, color = Color(0xFFE0F7FA), fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                                Text(if (bound == "None") "Default" else bound,
+                                    color = if (bound == "None") Color(0xFF64748B) else Color(0xFF00E5FF),
+                                    fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
                             }
-                        }
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Anchor:", color = Color(0xFF80DEEA), fontSize = 10.sp)
-                        listOf(false to "Bottom-Left", true to "Bottom-Right").forEach { (isRight, label) ->
-                            val active = s.oneHandCornerRight == isRight
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(if (active) Color(0xFF00BCD4) else Color(0xFF102A31))
-                                    .clickable { viewModel.updateSettings { cur -> cur.copy(oneHandCornerRight = isRight) } }
-                                    .padding(horizontal = 8.dp, vertical = 3.dp)
-                            ) {
-                                Text(label, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
-                    }
-                    SlimSwitch("OLED Pure Black (#000000 Battery Saver)", s.oneHandOledBlack) {
-                        viewModel.updateSettings { cur -> cur.copy(oneHandOledBlack = it) }
-                    }
-                    SlimSwitch("Unrestricted Floating Apps", s.oneHandUnrestrictedFloating) {
-                        viewModel.updateSettings { cur -> cur.copy(oneHandUnrestrictedFloating = it) }
-                    }
-                    SlimSwitch("Sync with Edge Panel", s.syncWithEdgePanel) {
-                        viewModel.updateSettings { cur -> cur.copy(syncWithEdgePanel = it) }
-                    }
-                    }
-                    SlimCollapsibleSection("Gesture Settings", "Gesture Settings" in expanded, { toggleSec("Gesture Settings") }) {
-                        GestureItems.forEach { g ->
-                            val bound = s.gestureBindings[g] ?: "None"
-                            Column(
-                                modifier = Modifier.fillMaxWidth()
-                                    .background(Color(0xFF0E2329), RoundedCornerShape(6.dp))
-                                    .padding(horizontal = 6.dp, vertical = 3.dp)
-                            ) {
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text(g, color = Color(0xFFE0F7FA), fontSize = 10.sp, fontWeight = FontWeight.Medium)
-                                    Text(if (bound == "None") "Default" else bound,
-                                        color = if (bound == "None") Color(0xFF64748B) else Color(0xFF00E5FF),
-                                        fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
-                                }
-                                Text(if (bound == "None") "+ Add Item" else "Change ($bound)",
-                                    color = Color(0xFF00E5FF), fontSize = 9.sp, fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.clickable { viewModel.startBindGesture(g) })
-                            }
+                            Text(if (bound == "None") "+ Add Item" else "Change ($bound)",
+                                color = Color(0xFF00E5FF), fontSize = 9.sp, fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.clickable { viewModel.startBindGesture(g) })
                         }
                     }
                 }
