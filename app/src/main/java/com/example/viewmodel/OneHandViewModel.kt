@@ -197,7 +197,7 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
                 "Bottom Right Swipe Up" -> "recent_apps_placeholder"
                 "Bottom Right Swipe Up Hold" -> "prev_app"
                 "Mini Display Swipe Left" -> "quick_panel"
-                "Mini Display Swipe Right" -> "main_panel"
+                "Mini Display Swipe Right" -> "panel_settings"
                 "Right Pull Inward" -> "back"
                 "Right Pull Inward Hold" -> "home"
                 else -> null
@@ -219,6 +219,10 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
                     "main_panel" -> {
                         navigateTo(ActiveWindow.MAIN_PANEL); togglePanel(true)
                         com.example.system.ActionResult("Edge Panel Groups")
+                    }
+                    "panel_settings" -> {
+                        navigateTo(ActiveWindow.PANEL_SETTINGS); togglePanel(true)
+                        com.example.system.ActionResult("Panel Settings")
                     }
                     else -> actions.perform(defaultAction)
                 }
@@ -796,9 +800,8 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
 
     fun swipePanel(toRight: Boolean) {
         if (toRight) {
-            // Swipe Right -> One Hand Mode
-            updateSettings { it.copy(oneHandModeEnabled = true) }
-            navigateTo(ActiveWindow.MAIN_PANEL)
+            // Keep the former One Hand gesture, but open Settings in the Edge Panel position.
+            navigateTo(ActiveWindow.PANEL_SETTINGS)
         } else {
             // Swipe Left -> Quick Panel
             navigateTo(ActiveWindow.QUICK_PANEL)
@@ -811,7 +814,6 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
             "open_quick" -> { navigateTo(ActiveWindow.QUICK_PANEL); togglePanel(true); return }
             "open_tools" -> { navigateTo(ActiveWindow.QUICK_TOOLS); togglePanel(true); return }
             "open_media" -> { navigateTo(ActiveWindow.MEDIA_CONTROL); togglePanel(true); return }
-            "one_hand" -> { updateSettings { it.copy(oneHandModeEnabled = !it.oneHandModeEnabled) }; return }
             // Last One is a direct saved-Back-coordinate action, never a Quick Settings tile.
             // Handle it before checking _tileTargets so stale tracked tile data cannot route it
             // into the connectivity macro (which opens Android Quick Settings).
@@ -1166,7 +1168,6 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
             q("open_tools", "Quick Tool", "build", 0xFF00BCD4, "Open Quick Tools", false, false),
             q("open_media", "Media Control", "music_note", 0xFF26C6DA, "Open Media Control", false, false),
             q("open_edge", "Edge Panel", "apps", 0xFF4DD0E1, "Open Edge Panel", false, false),
-            q("one_hand", "One Hand Mode", "smartphone", 0xFF80DEEA, "Toggle One Hand Mode", false, false),
             q("none", "None", "block", 0xFF64748B, "No action", false, false),
             q("location", "Location", "location_on", 0xFF4CAF50, "Location service", false, false),
             q("active_apps", "Active Apps", "layers", 0xFF00E5FF, "Activate apps", false, false),
