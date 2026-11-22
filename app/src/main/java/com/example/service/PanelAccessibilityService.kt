@@ -163,14 +163,20 @@ class PanelAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val t = event?.eventType ?: return
-        if (t == AccessibilityEvent.TYPE_WINDOWS_CHANGED || t == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+        if (t == AccessibilityEvent.TYPE_WINDOWS_CHANGED || t == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || t == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+            // Capture immediately while the floating app still exists. A delayed
+            // read after the close event misses the window because Android has removed it.
             mainHandler.removeCallbacks(recordRunnable)
-            mainHandler.postDelayed(recordRunnable, 500L)
+            mainHandler.post(recordRunnable)
         }
     }
 
-    /** Remembers where each floating (small) app window is, so it opens in the same place next time. */
+    /**
+     * Continuously keeps the last valid bounds while a floating app is visible.
+     * When it closes, the most recent saved rectangle remains available for relaunch.
+     */
     private fun recordFloatingBounds() {
+        var foundFloating = false
         try {
             val dm = resources.displayMetrics
             for (w in windows) {
@@ -179,11 +185,18 @@ class PanelAccessibilityService : AccessibilityService() {
                 if (pkg == packageName) continue
                 val r = Rect()
                 w.getBoundsInScreen(r)
-                // a floating window is smaller than the screen in BOTH directions (split-screen halves are not)
                 val floating = r.width() < dm.widthPixels * 0.96f && r.height() < dm.heightPixels * 0.9f
-                if (floating && r.width() > dp(120f) && r.height() > dp(120f)) floatingStore.put(pkg, r)
+                if (floating && r.width() > dp(120f) && r.height() > dp(120f)) {
+                    floatingStore.put(pkg, r)
+                    foundFloating = true
+                }
             }
         } catch (_: Throwable) {}
+        // Poll only while at least one floating app is present; stop automatically on close.
+        if (foundFloating) {
+            mainHandler.removeCallbacks(recordRunnable)
+            mainHandler.postDelayed(recordRunnable, 250L)
+        }
     }
 
     private var trackView: View? = null
