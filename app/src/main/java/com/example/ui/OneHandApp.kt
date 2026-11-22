@@ -47,9 +47,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -133,24 +131,27 @@ fun OneHandApp(
         Box(
             modifier = oneHandInnerModifier.then(
                 if (panelSettings.oneHandModeEnabled) Modifier.pointerInput(panelSettings.oneHandModeEnabled) {
-                    awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                        var dx = 0f
-                        var dy = 0f
-                        do {
-                            val event = awaitPointerEvent(PointerEventPass.Initial)
-                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                            dx = change.position.x - down.position.x
-                            dy = change.position.y - down.position.y
-                        } while (event.changes.any { it.id == down.id && it.pressed })
-                        val threshold = 72.dp.toPx()
-                        if (kotlin.math.abs(dx) > threshold && kotlin.math.abs(dx) > kotlin.math.abs(dy) * 1.25f) {
-                            // The mini-display is split at its own midpoint: the entire left half
-                            // belongs to Left Swipe and the entire right half belongs to Right Swipe.
-                            val startedOnLeftHalf = down.position.x < size.width / 2f
-                            viewModel.executeGesture(if (startedOnLeftHalf) "Mini Display Swipe Left" else "Mini Display Swipe Right")
+                    var dragDistance = 0f
+                    var startedOnLeftHalf = false
+                    var actionFired = false
+                    detectHorizontalDragGestures(
+                        onDragStart = { start ->
+                            // Use the mini-display's midpoint, not the physical screen midpoint.
+                            startedOnLeftHalf = start.x < size.width / 2f
+                            dragDistance = 0f
+                            actionFired = false
+                        },
+                        onHorizontalDrag = { change, amount ->
+                            dragDistance += kotlin.math.abs(amount)
+                            if (!actionFired && dragDistance >= 72.dp.toPx()) {
+                                actionFired = true
+                                viewModel.executeGesture(
+                                    if (startedOnLeftHalf) "Mini Display Swipe Left" else "Mini Display Swipe Right"
+                                )
+                            }
+                            change.consume()
                         }
-                    }
+                    )
                 } else Modifier
             )
         ) {
