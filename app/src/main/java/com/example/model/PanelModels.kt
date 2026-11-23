@@ -3,8 +3,7 @@ package com.example.model
 enum class ItemType {
     APP,
     SHORTCUT,
-    ACTION,
-    NON_TOGGLE_ACTION
+    ACTION
 }
 
 data class WindowGeometry(

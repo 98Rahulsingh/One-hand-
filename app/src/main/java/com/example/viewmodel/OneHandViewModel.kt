@@ -232,7 +232,7 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         }
         val match = _masterItems.value.firstOrNull { it.name.equals(label, ignoreCase = true) }
         if (match != null) {
-            if (match.type == ItemType.ACTION || match.type == ItemType.NON_TOGGLE_ACTION) {
+            if (match.type == ItemType.ACTION) {
                 val actionId = when (match.id) {
                     "act_bt" -> "bluetooth"
                     else -> match.id.removePrefix("act_")
@@ -1075,7 +1075,7 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
     )[itemId]
 
     fun launchApp(app: AppItem) {
-        if (app.type == ItemType.ACTION || app.type == ItemType.NON_TOGGLE_ACTION) {
+        if (app.type == ItemType.ACTION) {
             val id = actionIdFor(app.id)
             if (id != null) toggleQuickSetting(id) else showToast("${app.name} is not available")
             return
@@ -1102,7 +1102,7 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun createInitialItems(): List<AppItem> = createAllFakeItems().filter { it.type == ItemType.ACTION || it.type == ItemType.NON_TOGGLE_ACTION }
+    private fun createInitialItems(): List<AppItem> = createAllFakeItems().filter { it.type == ItemType.ACTION }
 
     private fun createAllFakeItems(): List<AppItem> {
         return listOf(
@@ -1134,21 +1134,21 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
             AppItem("sc_navigate", "Navigate Home", "com.google.android.apps.maps.home", ItemType.SHORTCUT, "Tools", "home", 0xFF4CAF50, true, "1-tap GPS route"),
 
             // Actions
-            AppItem("act_open_edge", "Open Edge Panel", "", ItemType.NON_TOGGLE_ACTION, "Tools", "apps", 0xFF00E5FF, true, "Switch to Edge Panel"),
-            AppItem("act_open_quick", "Open Quick Panel", "", ItemType.NON_TOGGLE_ACTION, "Tools", "tune", 0xFF00BCD4, true, "Switch to Quick Panel"),
-            AppItem("act_open_tools", "Open Quick Tools", "", ItemType.NON_TOGGLE_ACTION, "Tools", "build", 0xFF26C6DA, true, "Independent Quick Tools"),
-            AppItem("act_open_media", "Open Media Control", "", ItemType.NON_TOGGLE_ACTION, "Tools", "music_note", 0xFF4DD0E1, true, "Independent Media Control"),
+            AppItem("act_open_edge", "Open Edge Panel", "", ItemType.ACTION, "Tools", "apps", 0xFF00E5FF, true, "Switch to Edge Panel"),
+            AppItem("act_open_quick", "Open Quick Panel", "", ItemType.ACTION, "Tools", "tune", 0xFF00BCD4, true, "Switch to Quick Panel"),
+            AppItem("act_open_tools", "Open Quick Tools", "", ItemType.ACTION, "Tools", "build", 0xFF26C6DA, true, "Independent Quick Tools"),
+            AppItem("act_open_media", "Open Media Control", "", ItemType.ACTION, "Tools", "music_note", 0xFF4DD0E1, true, "Independent Media Control"),
             AppItem("act_wifi", "Wi-Fi Toggle", "", ItemType.ACTION, "Tools", "wifi", 0xFF00E5FF, true, "Quick wireless control"),
             AppItem("act_bt", "Bluetooth Toggle", "", ItemType.ACTION, "Tools", "bluetooth", 0xFF2196F3, true, "Pair & connect devices"),
             AppItem("act_data", "Mobile Data", "", ItemType.ACTION, "Tools", "cell_tower", 0xFF00BCD4, true, "Cellular connection"),
             AppItem("act_hotspot", "Personal Hotspot", "", ItemType.ACTION, "Tools", "wifi_tethering", 0xFFFF9800, true, "Share internet connection"),
-            AppItem("act_screenshot", "Capture Screenshot", "", ItemType.NON_TOGGLE_ACTION, "Tools", "screenshot", 0xFF9C27B0, true, "Save visible screen"),
-            AppItem("act_lock", "Lock Screen", "", ItemType.NON_TOGGLE_ACTION, "Tools", "lock", 0xFFF44336, true, "Instant sleep display"),
-            AppItem("act_split", "Split Screen", "", ItemType.NON_TOGGLE_ACTION, "Tools", "vertical_split", 0xFF4CAF50, true, "Multitask two apps"),
-            AppItem("act_floating", "Floating App", "", ItemType.NON_TOGGLE_ACTION, "Tools", "picture_in_picture", 0xFF00E5FF, true, "Open in window mode"),
+            AppItem("act_screenshot", "Capture Screenshot", "", ItemType.ACTION, "Tools", "screenshot", 0xFF9C27B0, true, "Save visible screen"),
+            AppItem("act_lock", "Lock Screen", "", ItemType.ACTION, "Tools", "lock", 0xFFF44336, true, "Instant sleep display"),
+            AppItem("act_split", "Split Screen", "", ItemType.ACTION, "Tools", "vertical_split", 0xFF4CAF50, true, "Multitask two apps"),
+            AppItem("act_floating", "Floating App", "", ItemType.ACTION, "Tools", "picture_in_picture", 0xFF00E5FF, true, "Open in window mode"),
             AppItem("act_torch", "Flashlight", "", ItemType.ACTION, "Tools", "flashlight_on", 0xFFFFD600, true, "Toggle LED flash"),
             AppItem("act_mute", "Sound / Mute", "", ItemType.ACTION, "Tools", "volume_up", 0xFFE040FB, true, "Toggle ringer profile"),
-            AppItem("act_last_one", "Last One", "", ItemType.NON_TOGGLE_ACTION, "Tools", "keyboard_return", 0xFF80DEEA, true, "Tap your saved navigation Back coordinate")
+            AppItem("act_last_one", "Last One", "", ItemType.ACTION, "Tools", "keyboard_return", 0xFF80DEEA, true, "Tap your saved navigation Back coordinate")
         )
     }
 

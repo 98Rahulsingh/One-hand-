@@ -106,7 +106,7 @@ fun AddQuickAccessModal(
         masterItems.filter { it.type == ItemType.ACTION }.forEach { item ->
             byTileId[tileIdFor(item)] = item
         }
-        quickSettings.filter { !it.id.startsWith("app_") && it.id != "none" }.forEach { tile ->
+        quickSettings.filter { !it.id.startsWith("app_") }.forEach { tile ->
             if (tile.id !in byTileId) {
                 byTileId[tile.id] = AppItem(
                     id = "act_qs_${tile.id}", name = tile.name, packageName = "",
@@ -157,13 +157,6 @@ fun AddQuickAccessModal(
                     viewModel.setItemFilterType(ItemType.ACTION)
                     viewModel.selectAlphabetLetter(null)
                 }, "filter_pill_actions")
-                if (pendingGesture == null && !tilesTab) {
-                    FilterPill("NON-TOGGLE", selectedAddTab == "NON_TOGGLE", {
-                        selectedAddTab = "NON_TOGGLE"
-                        viewModel.setItemFilterType(ItemType.NON_TOGGLE_ACTION)
-                        viewModel.selectAlphabetLetter(null)
-                    }, "filter_pill_non_toggle_actions")
-                }
                 FilterPill("APPS", selectedAddTab == "APPS", {
                     selectedAddTab = "APPS"
                     viewModel.setItemFilterType(ItemType.APP)
@@ -297,7 +290,7 @@ fun AddQuickAccessModal(
                     Column {
                         QuickAccessListItem(item = item, isAdded = added, onToggle = {
                             when {
-                                pendingGesture != null && (item.type == ItemType.ACTION || item.type == ItemType.NON_TOGGLE_ACTION) ->
+                                pendingGesture != null && item.type == ItemType.ACTION ->
                                     viewModel.bindActionAndFinish(item, actionTileId ?: item.id)
                                 pendingGesture != null -> viewModel.bindAndFinish(item)
                                 tilesTab && item.type == ItemType.ACTION ->

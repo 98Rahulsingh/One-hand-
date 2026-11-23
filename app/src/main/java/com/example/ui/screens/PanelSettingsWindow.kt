@@ -13,7 +13,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -49,19 +48,9 @@ fun PanelSettingsWindow(
         expanded = if (name in expanded) expanded - name else expanded + name
     }
 
-    val screenHeightDp = LocalConfiguration.current.screenHeightDp
-    val panelHeightDp = (screenHeightDp * s.panelHeightPercent / 100f).coerceIn(220f, screenHeightDp.toFloat())
-    val horizontalOffsetDp = (s.horizontalOffset * 3.5f).dp
-    val verticalOffsetDp = ((s.verticalPosition - 5) * 45 + s.verticalOffsetDp).dp
-
-    Box(modifier = modifier.fillMaxSize()) {
     Column(
-        modifier = Modifier
-            .align(if (s.isRightEdge) Alignment.CenterEnd else Alignment.CenterStart)
-            .offset(x = if (s.isRightEdge) -horizontalOffsetDp else horizontalOffsetDp, y = verticalOffsetDp)
-            .width(s.panelWidthDp.dp)
-            .height(panelHeightDp.dp)
-            .clip(RoundedCornerShape((s.roundedCorners * 3.2f).dp))
+        modifier = modifier
+            .fillMaxSize()
             .background(Color(0xFF0A1418))
             .statusBarsPadding()
             .navigationBarsPadding()
@@ -381,7 +370,6 @@ fun PanelSettingsWindow(
                 TextButton(onClick = { viewModel.dismissPermissionGuide() }) { Text("Close") }
             }
         )
-    }
     }
 }
 
