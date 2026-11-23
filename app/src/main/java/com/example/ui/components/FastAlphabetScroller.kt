@@ -128,7 +128,7 @@ fun FastAlphabetScroller(
         }
 
         // Floating Magnifying Indicator when scrubbed
-        val displayLetter = activeScrubLetter ?: selectedLetter
+        val displayLetter = if (isDragging) activeScrubLetter else null
         AnimatedVisibility(
             visible = displayLetter != null,
             enter = fadeIn() + scaleIn(),
