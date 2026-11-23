@@ -94,7 +94,8 @@ fun AddQuickAccessModal(
             "act_hotspot" to "hotspot", "act_airplane" to "airplane", "act_screenshot" to "screenshot", "act_lock" to "lock",
             "act_split" to "split", "act_floating" to "floating", "act_torch" to "torch",
             "act_mute" to "mute", "act_open_edge" to "open_edge", "act_open_quick" to "open_quick",
-            "act_open_tools" to "open_tools", "act_open_media" to "open_media"
+            "act_open_tools" to "open_tools", "act_open_media" to "open_media",
+            "act_open_quick_app" to "open_quick_app", "act_open_side_panel" to "open_side_panel"
         )
     }
     fun tileIdFor(item: AppItem): String = actionTileIds[item.id]

@@ -225,6 +225,18 @@ fun PanelSettingsWindow(
                     SlimSlider("Width Media", s.mediaControlWidthDp, 160f..360f, "${s.mediaControlWidthDp.toInt()}dp") {
                         viewModel.updateSettings { cur -> cur.copy(mediaControlWidthDp = it) }
                     }
+                    SlimSlider("Length Quick App", s.quickAppLengthDp, 280f..700f, "${s.quickAppLengthDp.toInt()}dp") {
+                        viewModel.updateSettings { cur -> cur.copy(quickAppLengthDp = it) }
+                    }
+                    SlimSlider("Width Quick App", s.quickAppWidthDp, 220f..420f, "${s.quickAppWidthDp.toInt()}dp") {
+                        viewModel.updateSettings { cur -> cur.copy(quickAppWidthDp = it) }
+                    }
+                    SlimSlider("Length Side Panel", s.sidePanelLengthDp, 320f..820f, "${s.sidePanelLengthDp.toInt()}dp") {
+                        viewModel.updateSettings { cur -> cur.copy(sidePanelLengthDp = it) }
+                    }
+                    SlimSlider("Width Side Panel", s.sidePanelWidthDp, 260f..440f, "${s.sidePanelWidthDp.toInt()}dp") {
+                        viewModel.updateSettings { cur -> cur.copy(sidePanelWidthDp = it) }
+                    }
                     SlimSwitch("Remember closed position", s.rememberFloatingPosition) {
                         viewModel.updateSettings { cur -> cur.copy(rememberFloatingPosition = it) }
                     }

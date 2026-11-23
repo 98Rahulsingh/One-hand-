@@ -134,6 +134,10 @@ data class PanelSettings(
     val quickToolWidthDp: Float = 250f,
     val mediaControlLengthDp: Float = 160f,
     val mediaControlWidthDp: Float = 250f,
+    val quickAppLengthDp: Float = 430f,
+    val quickAppWidthDp: Float = 300f,
+    val sidePanelLengthDp: Float = 520f,
+    val sidePanelWidthDp: Float = 340f,
     val rememberFloatingPosition: Boolean = true,
     val openFloatingAppsBottomDown: Boolean = true,
     val oneHandModeEnabled: Boolean = false,
@@ -154,6 +158,8 @@ enum class ActiveWindow {
     QUICK_PANEL,       // Unified 2: Quick Panel (Swipe Left from Edge Panel)
     QUICK_TOOLS,       // Independent 1: Quick Tools Floating Panel
     MEDIA_CONTROL,     // Independent 2: Media Control Floating Panel
+    QUICK_APP,
+    SIDE_PANEL,
     ADD_QUICK_ACCESS,  // Unified Add Item & Group/Action Selector
     PANEL_SETTINGS     // Collapsible Compact Settings & Permissions
 }

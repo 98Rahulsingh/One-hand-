@@ -955,67 +955,45 @@ fun QuickSettingsRow(
     onOpenSettings: () -> Unit,
     onOpenActionsAdd: () -> Unit,
     reorderId: String? = null,
-    onLongPressSetting: (String) -> Unit = {}
+    onLongPressSetting: (String) -> Unit = {},
+    twoColumns: Boolean = false
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF0C242A)),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1A464F))
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 6.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            quickSettings.filter { it.isVisible }.forEach { setting ->
-                QuickSettingChip(
-                    item = setting,
-                    onToggle = { onToggleSetting(setting.id) },
-                    onLongPress = { onLongPressSetting(setting.id) },
-                    isReorderTarget = reorderId == setting.id
-                )
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1A464F))) {
+        if (twoColumns) {
+            Column(Modifier.fillMaxWidth().padding(5.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                quickSettings.filter { it.isVisible }.chunked(2).forEach { pair ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+                        pair.forEach { item -> QuickSettingChip(item, onToggle = { onToggleSetting(item.id) },
+                            onLongPress = { onLongPressSetting(item.id) }, isReorderTarget = reorderId == item.id) }
+                        if (pair.size == 1) Spacer(Modifier.weight(1f))
+                    }
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    Text("＋", color = Color(0xFF00E5FF), modifier = Modifier.clickable { onOpenActionsAdd() }.padding(horizontal = 10.dp))
+                    Text("⚙", color = Color(0xFF00E5FF), modifier = Modifier.clickable { onOpenSettings() }.padding(horizontal = 10.dp))
+                }
             }
-
-            // Quick setting '+' action button
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF133B44))
+        } else {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 6.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                quickSettings.filter { it.isVisible }.forEach { item ->
+                    QuickSettingChip(item, onToggle = { onToggleSetting(item.id) },
+                        onLongPress = { onLongPressSetting(item.id) }, isReorderTarget = reorderId == item.id)
+                }
+                Box(Modifier.size(32.dp).clip(CircleShape).background(Color(0xFF133B44))
                     .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.4f), CircleShape)
-                    .clickable { onOpenActionsAdd() }
-                    .testTag("add_quick_setting_action_button"),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Customize quick settings",
-                    tint = Color(0xFF00E5FF),
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-
-            // Settings button
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF133B44))
+                    .clickable { onOpenActionsAdd() }.testTag("add_quick_setting_action_button"),
+                    contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Add, contentDescription = "Customize quick settings", tint = Color(0xFF00E5FF), modifier = Modifier.size(16.dp))
+                }
+                Box(Modifier.size(32.dp).clip(CircleShape).background(Color(0xFF133B44))
                     .border(1.dp, Color(0xFF00E5FF).copy(alpha = 0.6f), CircleShape)
-                    .clickable { onOpenSettings() }
-                    .testTag("open_panel_settings_gear"),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Tune,
-                    contentDescription = "Panel settings",
-                    tint = Color(0xFF00E5FF),
-                    modifier = Modifier.size(16.dp)
-                )
+                    .clickable { onOpenSettings() }.testTag("open_panel_settings_gear"),
+                    contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Tune, contentDescription = "Panel settings", tint = Color(0xFF00E5FF), modifier = Modifier.size(16.dp))
+                }
             }
         }
     }

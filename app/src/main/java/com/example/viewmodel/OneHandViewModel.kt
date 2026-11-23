@@ -805,6 +805,8 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
             "open_quick" -> { navigateTo(ActiveWindow.QUICK_PANEL); togglePanel(true); return }
             "open_tools" -> { navigateTo(ActiveWindow.QUICK_TOOLS); togglePanel(true); return }
             "open_media" -> { navigateTo(ActiveWindow.MEDIA_CONTROL); togglePanel(true); return }
+            "open_quick_app" -> { navigateTo(ActiveWindow.QUICK_APP); togglePanel(true); return }
+            "open_side_panel" -> { navigateTo(ActiveWindow.SIDE_PANEL); togglePanel(true); return }
             "one_hand" -> { updateSettings { it.copy(oneHandModeEnabled = !it.oneHandModeEnabled) }; return }
             // Last One is a direct saved-Back-coordinate action, never a Quick Settings tile.
             // Handle it before checking _tileTargets so stale tracked tile data cannot route it
@@ -1071,7 +1073,8 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         "act_screenshot" to "screenshot", "act_lock" to "lock", "act_split" to "split",
         "act_floating" to "floating", "act_torch" to "torch", "act_mute" to "mute",
         "act_open_edge" to "open_edge", "act_open_quick" to "open_quick",
-        "act_open_tools" to "open_tools", "act_open_media" to "open_media", "act_last_one" to "last_one"
+        "act_open_tools" to "open_tools", "act_open_media" to "open_media",
+        "act_open_quick_app" to "open_quick_app", "act_open_side_panel" to "open_side_panel", "act_last_one" to "last_one"
     )[itemId]
 
     fun launchApp(app: AppItem) {
@@ -1138,6 +1141,8 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
             AppItem("act_open_quick", "Open Quick Panel", "", ItemType.ACTION, "Tools", "tune", 0xFF00BCD4, true, "Switch to Quick Panel"),
             AppItem("act_open_tools", "Open Quick Tools", "", ItemType.ACTION, "Tools", "build", 0xFF26C6DA, true, "Independent Quick Tools"),
             AppItem("act_open_media", "Open Media Control", "", ItemType.ACTION, "Tools", "music_note", 0xFF4DD0E1, true, "Independent Media Control"),
+            AppItem("act_open_quick_app", "Open Quick App", "", ItemType.ACTION, "Tools", "apps", 0xFF26C6DA, true, "Centered Quick App launcher"),
+            AppItem("act_open_side_panel", "Open Side Panel", "", ItemType.ACTION, "Tools", "dashboard", 0xFF00BCD4, true, "Action, Clipboard, Notes and Files"),
             AppItem("act_wifi", "Wi-Fi Toggle", "", ItemType.ACTION, "Tools", "wifi", 0xFF00E5FF, true, "Quick wireless control"),
             AppItem("act_bt", "Bluetooth Toggle", "", ItemType.ACTION, "Tools", "bluetooth", 0xFF2196F3, true, "Pair & connect devices"),
             AppItem("act_data", "Mobile Data", "", ItemType.ACTION, "Tools", "cell_tower", 0xFF00BCD4, true, "Cellular connection"),

@@ -1,5 +1,8 @@
 package com.example.ui
 
+import com.example.ui.screens.QuickAppScreen
+import com.example.ui.screens.SidePanelScreen
+
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.activity.compose.BackHandler
@@ -198,6 +201,16 @@ fun OneHandApp(
         }
 
         AnimatedVisibility(
+            visible = (activeWindow == ActiveWindow.QUICK_APP && isPanelOpen),
+            enter = fadeIn(), exit = fadeOut(), modifier = Modifier.fillMaxSize()
+        ) { QuickAppScreen(viewModel, panelSettings.quickAppWidthDp, panelSettings.quickAppLengthDp) }
+
+        AnimatedVisibility(
+            visible = (activeWindow == ActiveWindow.SIDE_PANEL && isPanelOpen),
+            enter = fadeIn(), exit = fadeOut(), modifier = Modifier.fillMaxSize()
+        ) { SidePanelScreen(viewModel, panelSettings.sidePanelWidthDp, panelSettings.sidePanelLengthDp) }
+
+        AnimatedVisibility(
             visible = (activeWindow == ActiveWindow.MEDIA_CONTROL && isPanelOpen),
             enter = fadeIn(),
             exit = fadeOut(),
@@ -219,10 +232,12 @@ fun OneHandApp(
         AnimatedVisibility(
             visible = (activeWindow == ActiveWindow.PANEL_SETTINGS),
             enter = fadeIn() + slideInHorizontally { -it },
-            exit = fadeOut() + slideOutHorizontally { -it }
-        ) {
-            PanelSettingsWindow(viewModel = viewModel)
-        }
+            exit = fadeOut() + slideOutHorizontally { -it },
+            modifier = Modifier.align(if (panelSettings.isRightEdge) Alignment.CenterEnd else Alignment.CenterStart)
+                .width(panelSettings.panelWidthDp.dp)
+                .fillMaxHeight(panelSettings.panelHeightPercent.coerceIn(30, 95) / 100f)
+                .offset(y = ((panelSettings.verticalPosition - 5) * 45 + panelSettings.verticalOffsetDp).dp)
+        ) { PanelSettingsWindow(viewModel = viewModel) }
 
         // Toast Feedback Banner Overlay
         AnimatedVisibility(

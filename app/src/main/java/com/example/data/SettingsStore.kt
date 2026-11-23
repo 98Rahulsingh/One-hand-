@@ -55,6 +55,10 @@ class SettingsStore(ctx: Context) {
             quickToolWidthDp = p.getFloat("quickToolWidthDp", d.quickToolWidthDp),
             mediaControlLengthDp = p.getFloat("mediaControlLengthDp", d.mediaControlLengthDp),
             mediaControlWidthDp = p.getFloat("mediaControlWidthDp", d.mediaControlWidthDp),
+            quickAppLengthDp = p.getFloat("quickAppLengthDp", d.quickAppLengthDp),
+            quickAppWidthDp = p.getFloat("quickAppWidthDp", d.quickAppWidthDp),
+            sidePanelLengthDp = p.getFloat("sidePanelLengthDp", d.sidePanelLengthDp),
+            sidePanelWidthDp = p.getFloat("sidePanelWidthDp", d.sidePanelWidthDp),
             rememberFloatingPosition = p.getBoolean("rememberFloatingPosition", d.rememberFloatingPosition),
             openFloatingAppsBottomDown = p.getBoolean("openFloatingAppsBottomDown", d.openFloatingAppsBottomDown),
             oneHandModeEnabled = p.getBoolean("oneHandModeEnabled", d.oneHandModeEnabled),
@@ -113,6 +117,10 @@ class SettingsStore(ctx: Context) {
             .putFloat("quickToolWidthDp", s.quickToolWidthDp)
             .putFloat("mediaControlLengthDp", s.mediaControlLengthDp)
             .putFloat("mediaControlWidthDp", s.mediaControlWidthDp)
+            .putFloat("quickAppLengthDp", s.quickAppLengthDp)
+            .putFloat("quickAppWidthDp", s.quickAppWidthDp)
+            .putFloat("sidePanelLengthDp", s.sidePanelLengthDp)
+            .putFloat("sidePanelWidthDp", s.sidePanelWidthDp)
             .putBoolean("rememberFloatingPosition", s.rememberFloatingPosition)
             .putBoolean("openFloatingAppsBottomDown", s.openFloatingAppsBottomDown)
             .putBoolean("oneHandModeEnabled", s.oneHandModeEnabled)

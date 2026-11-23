@@ -124,7 +124,8 @@ fun QuickToolsScreen(viewModel: OneHandViewModel, modifier: Modifier = Modifier)
             showActionNames = panelSettings.showActionNameInList,
             onToggleSetting = { viewModel.toggleQuickSetting(it) },
             onOpenSettings = { viewModel.navigateTo(ActiveWindow.PANEL_SETTINGS) },
-            onOpenActionsAdd = { viewModel.openAddWindow(forTiles = true) }
+            onOpenActionsAdd = { viewModel.openAddWindow(forTiles = true) },
+            twoColumns = true
         )
     }
 }
