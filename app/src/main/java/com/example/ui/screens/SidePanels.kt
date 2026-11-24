@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import com.example.model.AppItem
 import com.example.model.ItemType
 import com.example.viewmodel.OneHandViewModel
+import com.example.system.AppIcons
 import java.util.Base64
 
 private val pBg = Color(0xFF0A1418)
@@ -52,33 +54,31 @@ private val pText = Color(0xFFE0F7FA)
 @Composable
 fun QuickAppScreen(viewModel: OneHandViewModel, widthDp: Float, heightDp: Float) {
     val apps by viewModel.masterItems.collectAsState()
-    val used = remember(apps) { apps.filter { it.type == ItemType.APP }.sortedWith(compareByDescending<AppItem> { it.usageCount }.thenByDescending { it.lastUsed }).take(6) }
-    val recent = remember(apps) { apps.filter { it.type == ItemType.APP && it.lastUsed > 0L }.sortedByDescending { it.lastUsed }.take(6) }
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(Modifier.width(widthDp.dp).height(heightDp.dp).clip(RoundedCornerShape(14.dp)).background(pBg)
-            .border(1.dp, Color(0xFF1E4E59), RoundedCornerShape(14.dp)).padding(8.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("QUICK APP", color = pAccent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                Text("×", color = pText, modifier = Modifier.clickable { viewModel.dismissFloatingWindow() }.padding(4.dp))
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("MOST USED", color = pAccent, fontSize = 9.sp, modifier = Modifier.weight(1f))
-                Text("RECENT", color = pAccent, fontSize = 9.sp, modifier = Modifier.weight(1f))
-            }
-            repeat(6) { i ->
-                Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    QuickAppCell(used.getOrNull(i), Modifier.weight(1f)) { viewModel.launchApp(it) }
-                    QuickAppCell(recent.getOrNull(i), Modifier.weight(1f)) { viewModel.launchApp(it) }
-                }
-            }
+    val used = remember(apps) { apps.filter { it.type == ItemType.APP && it.packageName.isNotBlank() }.sortedWith(compareByDescending<AppItem> { it.usageCount }.thenByDescending { it.lastUsed }).distinctBy { it.packageName }.take(6) }
+    val recent = remember(apps) { apps.filter { it.type == ItemType.APP && it.packageName.isNotBlank() && it.lastUsed > 0L }.sortedByDescending { it.lastUsed }.distinctBy { it.packageName }.take(6) }
+    Column(Modifier.width(widthDp.dp).height(heightDp.dp).clip(RoundedCornerShape(14.dp)).background(pBg).border(1.dp, Color(0xFF1E4E59), RoundedCornerShape(14.dp)).padding(5.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("QUICK APP", color = pAccent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Text("×", color = pText, modifier = Modifier.clickable { viewModel.dismissFloatingWindow() }.padding(2.dp))
         }
+        Row(Modifier.fillMaxWidth()) {
+            Text("MOST USED", color = pAccent, fontSize = 8.sp, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            Text("RECENT", color = pAccent, fontSize = 8.sp, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        }
+        repeat(6) { i -> Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            QuickAppCell(used.getOrNull(i), Modifier.weight(1f)) { viewModel.launchApp(it) }
+            QuickAppCell(recent.getOrNull(i), Modifier.weight(1f)) { viewModel.launchApp(it) }
+        } }
     }
 }
+
 @Composable
 private fun QuickAppCell(item: AppItem?, modifier: Modifier, onClick: (AppItem) -> Unit) {
-    Box(modifier.fillMaxHeight().clip(RoundedCornerShape(8.dp)).background(pCard)
-        .clickable(enabled = item != null) { item?.let(onClick) }.padding(4.dp), contentAlignment = Alignment.Center) {
-        Text(item?.name ?: "—", color = if (item == null) Color(0xFF607D86) else pText, fontSize = 10.sp, maxLines = 2)
+    Column(modifier.fillMaxHeight().clip(RoundedCornerShape(6.dp)).clickable(enabled = item != null) { item?.let(onClick) }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        val icon = item?.let { AppIcons.get(it.packageName) }
+        if (icon != null) Image(bitmap = icon, contentDescription = item.name, modifier = Modifier.size(32.dp).clip(RoundedCornerShape(7.dp)))
+        else Box(Modifier.size(32.dp).background(pCard, RoundedCornerShape(7.dp)), contentAlignment = Alignment.Center) { Text(item?.name?.take(1)?.uppercase() ?: "·", color = pAccent, fontSize = 14.sp) }
+        if (item != null) Text(item.name, color = pText, fontSize = 7.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
 }
 
@@ -119,35 +119,27 @@ fun SidePanelScreen(viewModel: OneHandViewModel, widthDp: Float, heightDp: Float
 @Composable
 private fun SideActionTab(viewModel: OneHandViewModel) {
     val apps by viewModel.masterItems.collectAsState()
-    val actions = remember(apps) { apps.filter { it.type == ItemType.ACTION && it.isAdded } }
-    val recent = remember(apps) { apps.filter { it.type == ItemType.APP && it.lastUsed > 0L }.sortedByDescending { it.lastUsed }.take(5) }
-    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        Text("ACTIONS", color = pAccent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-        LazyVerticalGrid(columns = GridCells.Fixed(5), modifier = Modifier.fillMaxWidth().weight(1f),
-            verticalArrangement = Arrangement.spacedBy(7.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-            items(actions, key = { it.id }) { item ->
-                Column(Modifier.clip(RoundedCornerShape(8.dp)).background(pCard).clickable { viewModel.launchApp(item) }
-                    .padding(vertical = 9.dp, horizontal = 2.dp), horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center) {
-                    Text(item.iconName.take(2).uppercase(), color = pAccent, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text(item.name, color = pText, fontSize = 8.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+    val recent = remember(apps) { apps.filter { it.type == ItemType.APP && it.lastUsed > 0L && it.packageName.isNotBlank() }.sortedByDescending { it.lastUsed }.distinctBy { it.packageName }.take(30) }
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Spacer(Modifier.weight(1f)) // Intentionally empty upper area.
+        LazyVerticalGrid(columns = GridCells.Fixed(5), modifier = Modifier.fillMaxWidth().height(74.dp), userScrollEnabled = false, verticalArrangement = Arrangement.spacedBy(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            items(10) {
+                Box(Modifier.fillMaxWidth().height(34.dp).clip(RoundedCornerShape(8.dp)).background(pCard).border(1.dp, Color(0xFF28555E), RoundedCornerShape(8.dp)).clickable { viewModel.openAddWindow(forTiles = false) }, contentAlignment = Alignment.Center) {
+                    Text("+", color = pAccent, fontSize = 20.sp)
                 }
             }
         }
-        Text("RECENT APPS", color = pAccent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-        Row(Modifier.fillMaxWidth().height(62.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("RECENT APPS", color = pAccent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Row(Modifier.fillMaxWidth().height(58.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
             recent.forEach { item ->
-                Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(8.dp)).background(pCard)
-                    .clickable { viewModel.launchApp(item) }.padding(3.dp), horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center) {
-                    Text(item.name.take(2).uppercase(), color = pAccent, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text(item.name, color = pText, fontSize = 8.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Column(Modifier.width(48.dp).fillMaxHeight().clickable { viewModel.launchApp(item) }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    val icon = AppIcons.get(item.packageName)
+                    if (icon != null) Image(bitmap = icon, contentDescription = item.name, modifier = Modifier.size(32.dp).clip(RoundedCornerShape(7.dp)))
+                    else Box(Modifier.size(32.dp).background(pCard, RoundedCornerShape(7.dp)), contentAlignment = Alignment.Center) { Text(item.name.take(1).uppercase(), color = pAccent) }
+                    Text(item.name, color = pText, fontSize = 7.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         }
-        Text("+ Add item", color = pAccent, fontSize = 10.sp, modifier = Modifier.align(Alignment.End)
-            .clickable { viewModel.openAddWindow(forTiles = false) }.padding(5.dp))
     }
 }
 
