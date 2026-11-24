@@ -965,7 +965,7 @@ fun QuickSettingsRow(
         border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1A464F))) {
         if (fiveColumns) {
             val visibleItems = quickSettings.filter { it.isVisible }
-            val pageCount = ((visibleItems.size + 9) / 10).coerceAtLeast(1)
+            val pageCount = ((visibleItems.size + 11) / 12).coerceAtLeast(1)
             var page by remember(visibleItems.map { it.id }) { mutableStateOf(0) }
             var dragTotal by remember { mutableFloatStateOf(0f) }
             Column(Modifier.fillMaxWidth().padding(5.dp)
@@ -978,15 +978,15 @@ fun QuickSettingsRow(
                         dragTotal = 0f
                     })
                 }) {
-                LazyVerticalGrid(columns = GridCells.Fixed(5), modifier = Modifier.fillMaxWidth().height(112.dp),
+                LazyVerticalGrid(columns = GridCells.Fixed(6), modifier = Modifier.fillMaxWidth().height(112.dp),
                     userScrollEnabled = false, verticalArrangement = Arrangement.spacedBy(5.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    items(visibleItems.drop(page * 10).take(10), key = { it.id }) { item ->
+                    items(visibleItems.drop(page * 12).take(12), key = { it.id }) { item ->
                         QuickSettingChip(item, onToggle = { onToggleSetting(item.id) },
                             onLongPress = { onLongPressSetting(item.id) }, isReorderTarget = reorderId == item.id)
                     }
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text(if (pageCount > 1) "${page + 1}/$pageCount  ·  Swipe ↑" else "1/1", color = Color(0xFF80DEEA), fontSize = 8.sp)
+                    Text(if (pageCount > 1) "${page + 1}/$pageCount  ·  Swipe ↑ / ↓" else "1/1", color = Color(0xFF80DEEA), fontSize = 8.sp)
                     Row { Text("＋", color = Color(0xFF00E5FF), modifier = Modifier.clickable { onOpenActionsAdd() }.padding(horizontal = 10.dp))
                         Text("⚙", color = Color(0xFF00E5FF), modifier = Modifier.clickable { onOpenSettings() }.padding(horizontal = 10.dp)) }
                 }

@@ -19,9 +19,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -190,6 +187,7 @@ private fun ClipboardTab(context: Context) {
         }
         OutlinedTextField(value = query, onValueChange = { query = it }, label = { Text("Search clipboard") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
     }
+    Box(Modifier.fillMaxSize()) {
     selected?.let { value ->
         var draft by remember(value) { mutableStateOf(value) }
         val url = Regex("https?://\\S+", RegexOption.IGNORE_CASE).find(draft)?.value
@@ -197,8 +195,8 @@ private fun ClipboardTab(context: Context) {
         val oneLine = draft.contains('\n') || draft.contains('\r')
         val canUpper = draft.any { it.isLowerCase() }
         val canLower = draft.any { it.isUpperCase() }
-        Dialog(onDismissRequest = { selected = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF202124)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.58f)).clickable { selected = null }, contentAlignment = Alignment.Center) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF202124)).clickable(enabled = false) {}.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Clipboard text", color = pText, fontWeight = FontWeight.Bold); Text("×", color = pText, modifier = Modifier.clickable { selected = null }) }
                 Text(draft, color = pText, fontSize = 13.sp, maxLines = 5)
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -220,6 +218,7 @@ private fun ClipboardTab(context: Context) {
                 }
             }
         }
+        }
     }
 }
 @Composable
@@ -239,6 +238,7 @@ private fun NotesTab(context: Context) {
     val pinned = remember { mutableStateListOf<String>().apply { addAll(context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).getStringSet("pinned_notes", emptySet())?.toList() ?: emptyList()) } }
     var selected by remember { mutableStateOf<String?>(null) }
     var creating by remember { mutableStateOf(false) }
+    Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("${notes.size} saved", color = pText.copy(alpha = .75f), fontSize = 10.sp)
@@ -255,8 +255,8 @@ private fun NotesTab(context: Context) {
     }
     selected?.let { original ->
         var draft by remember(original) { mutableStateOf(original) }
-        Dialog(onDismissRequest = { selected = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            Column(Modifier.fillMaxSize().background(Color(0xFF111111)).padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Box(Modifier.fillMaxSize().background(Color(0xEE080D10)).clickable { selected = null }, contentAlignment = Alignment.Center) {
+            Column(Modifier.fillMaxSize().padding(8.dp).background(Color(0xFF111111), RoundedCornerShape(12.dp)).clickable(enabled = false) {}.padding(horizontal = 16.dp, vertical = 12.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(if (creating) "New note" else "Edit note", color = pText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Text("×", color = pText, fontSize = 24.sp, modifier = Modifier.clickable { selected = null }.padding(6.dp))
@@ -284,6 +284,7 @@ private fun NotesTab(context: Context) {
                     }.padding(5.dp))
                 }
             }
+        }
         }
     }
 }

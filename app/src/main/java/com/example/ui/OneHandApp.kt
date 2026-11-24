@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -203,12 +204,12 @@ fun OneHandApp(
 
         AnimatedVisibility(
             visible = (activeWindow == ActiveWindow.QUICK_APP && isPanelOpen),
-            enter = fadeIn(), exit = fadeOut(), modifier = Modifier.fillMaxSize()
+            enter = fadeIn(), exit = fadeOut(), modifier = Modifier.fillMaxSize().wrapContentSize(Alignment.Center)
         ) { QuickAppScreen(viewModel, panelSettings.quickAppWidthDp, panelSettings.quickAppLengthDp) }
 
         AnimatedVisibility(
             visible = (activeWindow == ActiveWindow.SIDE_PANEL && isPanelOpen),
-            enter = fadeIn(), exit = fadeOut(), modifier = Modifier.fillMaxSize()
+            enter = fadeIn(), exit = fadeOut(), modifier = Modifier.fillMaxSize().wrapContentSize(Alignment.Center)
         ) { SidePanelScreen(viewModel, panelSettings.sidePanelWidthDp, panelSettings.sidePanelLengthDp) }
 
         AnimatedVisibility(

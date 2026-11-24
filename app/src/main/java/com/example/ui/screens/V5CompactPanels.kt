@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -254,8 +255,12 @@ private fun V5EdgeSlider(label: String?, value: Float, range: ClosedFloatingPoin
     var dragging by remember { mutableStateOf(false) }
     var preview by remember(value) { mutableFloatStateOf(value) }
     Column(Modifier.fillMaxWidth()) {
-        if (showSeekTime && dragging) {
-            Text("${preview.toInt() / 60}:${(preview.toInt() % 60).toString().padStart(2, '0')} / ${range.endInclusive.toInt() / 60}:${(range.endInclusive.toInt() % 60).toString().padStart(2, '0')}", color = Color(0xFF80DEEA), fontSize = 9.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
+        Box(Modifier.fillMaxWidth().height(if (showSeekTime && dragging) 24.dp else 2.dp)) {
+            if (showSeekTime && dragging) {
+                Surface(color = Color(0xFF003B46), shape = RoundedCornerShape(8.dp), modifier = Modifier.align(Alignment.Center)) {
+                    Text("${preview.toInt() / 60}:${(preview.toInt() % 60).toString().padStart(2, '0')}  /  ${range.endInclusive.toInt() / 60}:${(range.endInclusive.toInt() % 60).toString().padStart(2, '0')}", color = Color.White, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp))
+                }
+            }
         }
         Row(
         modifier = Modifier.fillMaxWidth().height(22.dp),
