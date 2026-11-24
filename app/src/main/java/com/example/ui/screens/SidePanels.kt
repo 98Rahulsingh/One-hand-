@@ -10,9 +10,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -233,7 +235,7 @@ private fun ClipboardTab(context: Context) {
 @Composable
 private fun ClipboardCard(value: String, isPinned: Boolean, onTap: () -> Unit, onLongPress: () -> Unit) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp)).background(Color(0xFF263238))
-        .pointerInput(value) { androidx.compose.foundation.gestures.detectTapGestures(onTap = { onTap() }, onLongPress = { onLongPress() }) }
+        .pointerInput(value) { detectTapGestures(onTap = { onTap() }, onLongPress = { onLongPress() }) }
         .padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(if (isPinned) "📌  " else "", color = pAccent)
         Text(value, color = pText, fontSize = 12.sp, maxLines = 3, modifier = Modifier.weight(1f))
