@@ -529,11 +529,38 @@ class PanelAccessibilityService : AccessibilityService() {
         var downTime = 0L
         var lastTapTime = 0L
         var pendingSingleTap: Runnable? = null
+        var pendingLongPress: Runnable? = null
         val gestureHandler = Handler(Looper.getMainLooper())
         var moved = false
         var fired = false
-        var holdGesture = false
+        var candidateGesture: String? = null
         var secondTapCandidate = false
+        val tapWindowMs = 460L
+        val holdWindowMs = 520L
+        val moveThreshold = dp(34f)
+
+        fun cancelPendingSingle() {
+            pendingSingleTap?.let { gestureHandler.removeCallbacks(it) }
+            pendingSingleTap = null
+        }
+        fun cancelPendingLong() {
+            pendingLongPress?.let { gestureHandler.removeCallbacks(it) }
+            pendingLongPress = null
+        }
+        fun performSwipe(isHold: Boolean) {
+            val base = candidateGesture ?: return
+            if (fired) return
+            fired = true
+            cancelPendingLong()
+            cancelPendingSingle()
+            val holdName = "$base Hold"
+            when {
+                isHold && st.gestureBindings.containsKey(holdName) -> vm.executeGesture(holdName)
+                st.gestureBindings.containsKey(base) -> vm.executeGesture(base)
+                else -> openPanel()
+            }
+        }
+
         v.setOnTouchListener { _, ev ->
             when (ev.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
@@ -542,74 +569,93 @@ class PanelAccessibilityService : AccessibilityService() {
                     downTime = System.currentTimeMillis()
                     moved = false
                     fired = false
-                    holdGesture = false
-                    secondTapCandidate = lastTapTime > 0L && downTime - lastTapTime <= 330L
-                    if (secondTapCandidate) {
-                        pendingSingleTap?.let { gestureHandler.removeCallbacks(it) }
-                        pendingSingleTap = null
+                    candidateGesture = null
+                    secondTapCandidate = lastTapTime > 0L && downTime - lastTapTime <= tapWindowMs
+                    if (secondTapCandidate) cancelPendingSingle()
+                    cancelPendingLong()
+                    val longPress = Runnable {
+                        // A stationary hold is not committed until release: the user may still
+                        // begin a Swipe-Hold by moving after the hold threshold.
+                        if (moved && !fired && candidateGesture != null) {
+                            val holdName = "${candidateGesture} Hold"
+                            if (st.gestureBindings.containsKey(holdName)) performSwipe(true)
+                        }
                     }
+                    pendingLongPress = longPress
+                    gestureHandler.postDelayed(longPress, holdWindowMs)
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val dx = ev.rawX - downX
                     val dy = ev.rawY - downY
-                    val slop = dp(10f)
-                    if (!moved && (abs(dx) > slop || abs(dy) > slop)) {
+                    val elapsed = System.currentTimeMillis() - downTime
+                    if (!moved && (abs(dx) > dp(10f) || abs(dy) > dp(10f))) {
                         moved = true
-                        holdGesture = System.currentTimeMillis() - downTime >= 420L
-                        pendingSingleTap?.let { gestureHandler.removeCallbacks(it) }
-                        pendingSingleTap = null
+                        cancelPendingSingle()
                         lastTapTime = 0L
                     }
                     if (!fired && moved) {
-                        val horizontal = if (isRight) -dx else dx
-                        val vertical = dy
-                        val threshold = dp(34f)
-                        val gesture = when {
-                            horizontal >= threshold -> if (holdGesture && st.gestureBindings.containsKey("Swipe Inward Hold")) "Swipe Inward Hold" else "Swipe Inward"
-                            horizontal <= -threshold -> if (holdGesture && st.gestureBindings.containsKey("Swipe Outward Hold")) "Swipe Outward Hold" else "Swipe Outward"
-                            vertical <= -threshold -> if (holdGesture && st.gestureBindings.containsKey("Swipe Up Hold")) "Swipe Up Hold" else "Swipe Up"
-                            vertical >= threshold -> if (holdGesture && st.gestureBindings.containsKey("Swipe Down Hold")) "Swipe Down Hold" else "Swipe Down"
-                            else -> null
+                        if (candidateGesture == null && maxOf(abs(dx), abs(dy)) >= moveThreshold) {
+                            candidateGesture = if (abs(dx) >= abs(dy)) {
+                                val inward = if (isRight) -dx else dx
+                                if (inward >= 0f) "Swipe Inward" else "Swipe Outward"
+                            } else if (dy < 0f) "Swipe Up" else "Swipe Down"
                         }
-                        if (gesture != null) {
-                            fired = true
-                            if (st.gestureBindings.containsKey(gesture)) vm.executeGesture(gesture)
-                            else if (gesture.endsWith("Hold")) vm.executeGesture(gesture.removeSuffix(" Hold"))
-                            else openPanel()
+                        val base = candidateGesture
+                        if (base != null) {
+                            val hasHold = st.gestureBindings.containsKey("$base Hold")
+                            if (hasHold) {
+                                if (elapsed >= holdWindowMs) performSwipe(true)
+                            } else {
+                                performSwipe(false)
+                            }
                         }
                     }
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (!fired && !moved) {
-                        val now = System.currentTimeMillis()
-                        if (now - downTime >= 520L) {
-                            pendingSingleTap?.let { gestureHandler.removeCallbacks(it) }
-                            pendingSingleTap = null
+                    cancelPendingLong()
+                    val now = System.currentTimeMillis()
+                    val elapsed = now - downTime
+                    if (!fired && moved && candidateGesture != null) {
+                        performSwipe(elapsed >= holdWindowMs)
+                    } else if (!fired && !moved) {
+                        if (elapsed >= holdWindowMs) {
+                            fired = true
+                            cancelPendingSingle()
                             lastTapTime = 0L
                             if (st.gestureBindings.containsKey("Long Press")) vm.executeGesture("Long Press")
-                        } else if (secondTapCandidate && lastTapTime > 0L && now - lastTapTime <= 380L) {
-                            pendingSingleTap?.let { gestureHandler.removeCallbacks(it) }
-                            pendingSingleTap = null
+                        } else if (secondTapCandidate && lastTapTime > 0L && now - lastTapTime <= tapWindowMs) {
+                            cancelPendingSingle()
                             lastTapTime = 0L
+                            fired = true
                             if (st.gestureBindings.containsKey("Double Tap")) vm.executeGesture("Double Tap")
-                            else if (st.gestureBindings.containsKey("Single Tap")) vm.executeGesture("Single Tap") else openPanel()
+                            else if (st.gestureBindings.containsKey("Single Tap")) vm.executeGesture("Single Tap")
+                            else openPanel()
                         } else {
-                            lastTapTime = now
-                            val tapTime = now
-                            val single = Runnable {
-                                pendingSingleTap = null
-                                if (lastTapTime == tapTime) lastTapTime = 0L
+                            if (secondTapCandidate) {
                                 if (st.gestureBindings.containsKey("Single Tap")) vm.executeGesture("Single Tap") else openPanel()
                             }
-                            pendingSingleTap?.let { gestureHandler.removeCallbacks(it) }
-                            pendingSingleTap = single
-                            gestureHandler.postDelayed(single, 360L)
+                            lastTapTime = now
+                            val tapTimestamp = now
+                            val singleTap = Runnable {
+                                pendingSingleTap = null
+                                if (lastTapTime == tapTimestamp) {
+                                    lastTapTime = 0L
+                                    if (st.gestureBindings.containsKey("Single Tap")) vm.executeGesture("Single Tap") else openPanel()
+                                }
+                            }
+                            cancelPendingSingle()
+                            pendingSingleTap = singleTap
+                            gestureHandler.postDelayed(singleTap, tapWindowMs)
                         }
                     }
                     secondTapCandidate = false
                 }
                 MotionEvent.ACTION_CANCEL -> {
-                    if (moved) { pendingSingleTap?.let { gestureHandler.removeCallbacks(it) }; pendingSingleTap = null; lastTapTime = 0L }
+                    cancelPendingLong()
+                    cancelPendingSingle()
+                    lastTapTime = 0L
+                    candidateGesture = null
+                    fired = true
                 }
             }
             true

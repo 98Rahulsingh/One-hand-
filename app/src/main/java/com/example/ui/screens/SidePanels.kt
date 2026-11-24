@@ -103,16 +103,17 @@ fun SidePanelScreen(viewModel: OneHandViewModel, widthDp: Float, heightDp: Float
     var offsetX by remember { mutableIntStateOf(savedPosition?.left ?: 0) }
     var offsetY by remember { mutableIntStateOf(savedPosition?.top ?: 0) }
     var expanded by remember { mutableStateOf(false) }
-    var tab by remember { mutableStateOf("Action") }
+    val sidePrefs = remember { context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE) }
+    var tab by remember { mutableStateOf(sidePrefs.getString("last_side_panel_tab", "Action") ?: "Action") }
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(Modifier.offset { IntOffset(offsetX, offsetY) }.then(if (expanded) Modifier.fillMaxSize() else Modifier.width(widthDp.dp).height(heightDp.dp))
             .clip(RoundedCornerShape(if (expanded) 0.dp else 14.dp)).background(pBg)
             .border(if (expanded) 0.dp else 1.dp, Color(0xFF1E4E59), RoundedCornerShape(if (expanded) 0.dp else 14.dp)).padding(8.dp)) {
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when (tab) {
-                    "Action" -> SideActionTab(viewModel)
+                    "Action" -> SideActionTab(context, viewModel)
                     "Clipboard" -> ClipboardTab(context)
-                    "Notes" -> NotesTab(context)
+                    "Notes" -> NotesTab(context, viewModel)
                     "Files" -> FilesTab(context)
                 }
             }
@@ -134,7 +135,7 @@ fun SidePanelScreen(viewModel: OneHandViewModel, widthDp: Float, heightDp: Float
             Row(Modifier.fillMaxWidth().background(pCard, RoundedCornerShape(8.dp)), horizontalArrangement = Arrangement.SpaceEvenly) {
                 listOf("Action", "Clipboard", "Notes", "Files").forEach { name ->
                     Text(name, color = if (tab == name) pAccent else pText, fontSize = 10.sp,
-                        modifier = Modifier.weight(1f).clickable { tab = name }.padding(vertical = 10.dp),
+                        modifier = Modifier.weight(1f).clickable { tab = name; sidePrefs.edit().putString("last_side_panel_tab", name).apply() }.padding(vertical = 10.dp),
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 }
             }
@@ -142,15 +143,41 @@ fun SidePanelScreen(viewModel: OneHandViewModel, widthDp: Float, heightDp: Float
     }
 }
 @Composable
-private fun SideActionTab(viewModel: OneHandViewModel) {
+private fun SideActionTab(context: Context, viewModel: OneHandViewModel) {
     val apps by viewModel.masterItems.collectAsState()
+    val quickSettings by viewModel.quickSettings.collectAsState()
+    val sideIds by viewModel.sidePanelItemIds.collectAsState()
+    val allSelectableItems = remember(apps, quickSettings) {
+        apps + quickSettings.filter { !it.id.startsWith("app_") }.map { tile ->
+            AppItem("act_qs_${tile.id}", tile.name, "", ItemType.ACTION, "Tools", tile.iconName, tile.color, true, tile.description)
+        }
+    }
+    val selectedItems = remember(allSelectableItems, sideIds) { sideIds.mapNotNull { id -> allSelectableItems.firstOrNull { it.id == id } }.take(10) }
     val recent = remember(apps) { apps.filter { it.type == ItemType.APP && it.lastUsed > 0L && it.packageName.isNotBlank() }.sortedByDescending { it.lastUsed }.distinctBy { it.packageName }.take(30) }
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Spacer(Modifier.weight(1f)) // Intentionally empty upper area.
-        LazyVerticalGrid(columns = GridCells.Fixed(5), modifier = Modifier.fillMaxWidth().height(74.dp), userScrollEnabled = false, verticalArrangement = Arrangement.spacedBy(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            items(10) {
-                Box(Modifier.fillMaxWidth().height(34.dp).clip(RoundedCornerShape(8.dp)).background(pCard).border(1.dp, Color(0xFF28555E), RoundedCornerShape(8.dp)).clickable { viewModel.openAddWindow(forTiles = false) }, contentAlignment = Alignment.Center) {
-                    Text("+", color = pAccent, fontSize = 20.sp)
+        Spacer(Modifier.weight(1f))
+        LazyVerticalGrid(columns = GridCells.Fixed(5), modifier = Modifier.fillMaxWidth().height(74.dp), userScrollEnabled = false,
+            verticalArrangement = Arrangement.spacedBy(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            items(10) { index ->
+                val item = selectedItems.getOrNull(index)
+                Column(Modifier.fillMaxWidth().height(34.dp).clip(RoundedCornerShape(8.dp)).background(pCard)
+                    .border(1.dp, Color(0xFF28555E), RoundedCornerShape(8.dp))
+                    .pointerInput(item?.id) {
+                        detectTapGestures(
+                            onTap = {
+                                if (item == null) viewModel.openAddWindow(forTiles = false, forSidePanel = true)
+                                else if (item.id.startsWith("act_qs_")) viewModel.toggleQuickSetting(item.id.removePrefix("act_qs_"))
+                                else viewModel.launchApp(item)
+                            },
+                            onLongPress = { if (item != null) viewModel.toggleSidePanelItem(item.id) }
+                        )
+                    }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    if (item == null) Text("+", color = pAccent, fontSize = 20.sp)
+                    else {
+                        val icon = if (item.type == ItemType.APP && item.packageName.isNotBlank()) AppIcons.get(item.packageName) else null
+                        if (icon != null) Image(bitmap = icon, contentDescription = item.name, modifier = Modifier.size(24.dp))
+                        else Text(item.name.take(1).uppercase(), color = pAccent, fontSize = 14.sp)
+                    }
                 }
             }
         }
@@ -191,6 +218,8 @@ private fun ClipboardTab(context: Context) {
     val clipManager = remember { context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
     val clips = remember { mutableStateListOf<String>().apply { addAll(loadSideClips(context).distinct()) } }
     val pinned = remember { mutableStateListOf<String>().apply { addAll(loadPinnedClips(context)) } }
+    val maxCards = remember { context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).getInt("clipboard_max_cards", 30).coerceIn(10, 100) }
+    val visibleClips = remember(clips.toList(), pinned.toList(), maxCards) { (pinned.toList() + clips.filter { it !in pinned }).distinct().take(maxCards) }
     var selected by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
         val current = clipManager.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
@@ -200,16 +229,13 @@ private fun ClipboardTab(context: Context) {
     fun saveAsNote(value: String) { val notes = loadSideNotes(context).toMutableList(); if (value !in notes) notes.add(0, value); saveSideNotes(context, notes); Toast.makeText(context, "Saved as note", Toast.LENGTH_SHORT).show() }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("${clips.size} saved · ${pinned.size} pinned", color = pText.copy(alpha = .7f), fontSize = 10.sp)
+            Text("${visibleClips.size}/$maxCards shown · ${pinned.size} pinned", color = pText.copy(alpha = .7f), fontSize = 10.sp)
             Text("Clear", color = pAccent, fontSize = 10.sp, modifier = Modifier.clickable { clips.clear(); saveSideClips(context, clips) }.padding(4.dp))
         }
         if (pinned.isNotEmpty()) Text("PINNED", color = pAccent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            items(pinned.toList().distinct(), key = { "pin_${it.hashCode()}" }) { value ->
-                ClipboardCard(value, true, { copyText(value) }, { selected = value })
-            }
-            items(clips.filter { it !in pinned }.distinct(), key = { "clip_${it.hashCode()}" }) { value ->
-                ClipboardCard(value, false, { copyText(value) }, { selected = value })
+            items(visibleClips, key = { "clip_${it.hashCode()}" }) { value ->
+                ClipboardCard(value, value in pinned, { copyText(value) }, { selected = value })
             }
         }
     }
@@ -263,64 +289,95 @@ private fun ClipboardCard(value: String, isPinned: Boolean, onTap: () -> Unit, o
 }
 
 @Composable
-private fun NotesTab(context: Context) {
+private fun NotesTab(context: Context, viewModel: OneHandViewModel) {
     val clipManager = remember { context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
     val notes = remember { mutableStateListOf<String>().apply { addAll(loadSideNotes(context).distinct()) } }
     val pinned = remember { mutableStateListOf<String>().apply { addAll(context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).getStringSet("pinned_notes", emptySet())?.toList() ?: emptyList()) } }
-    var selected by remember { mutableStateOf<String?>(null) }
-    var creating by remember { mutableStateOf(false) }
-    Box(Modifier.fillMaxSize()) {
+    val editorState by viewModel.noteEditorState.collectAsState()
+    LaunchedEffect(editorState) {
+        if (editorState == null) {
+            notes.clear(); notes.addAll(loadSideNotes(context).distinct())
+            pinned.clear(); pinned.addAll(context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).getStringSet("pinned_notes", emptySet())?.toList() ?: emptyList())
+        }
+    }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("${notes.size} saved", color = pText.copy(alpha = .75f), fontSize = 10.sp)
-            Text("+", color = pAccent, fontSize = 22.sp, modifier = Modifier.clickable { selected = ""; creating = true }.padding(horizontal = 10.dp))
+            Text("+", color = pAccent, fontSize = 22.sp, modifier = Modifier.clickable { viewModel.openNoteEditor("", true) }.padding(horizontal = 10.dp))
         }
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             items(pinned.toList().distinct(), key = { "note_pin_${it.hashCode()}" }) { note ->
-                NoteCard(note, true, onTap = { clipManager.setPrimaryClip(ClipData.newPlainText("note", note)) }, onLongPress = { selected = note; creating = false }, onSwipeLeft = { if (note in pinned) pinned.remove(note) else pinned.add(note); context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).edit().putStringSet("pinned_notes", pinned.toSet()).apply() }, onSwipeRight = { notes.remove(note); pinned.remove(note); saveSideNotes(context, notes); context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).edit().putStringSet("pinned_notes", pinned.toSet()).apply() })
+                NoteCard(note, true,
+                    onTap = { clipManager.setPrimaryClip(ClipData.newPlainText("note", note)) },
+                    onLongPress = { viewModel.openNoteEditor(note, false) },
+                    onSwipeLeft = { if (note in pinned) pinned.remove(note) else pinned.add(note); context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).edit().putStringSet("pinned_notes", pinned.toSet()).apply() },
+                    onSwipeRight = { notes.remove(note); pinned.remove(note); saveSideNotes(context, notes); context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).edit().putStringSet("pinned_notes", pinned.toSet()).apply() })
             }
             items(notes.filter { it !in pinned }.distinct(), key = { "note_${it.hashCode()}" }) { note ->
-                NoteCard(note, false, onTap = { clipManager.setPrimaryClip(ClipData.newPlainText("note", note)) }, onLongPress = { selected = note; creating = false }, onSwipeLeft = { if (note in pinned) pinned.remove(note) else pinned.add(note); context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).edit().putStringSet("pinned_notes", pinned.toSet()).apply() }, onSwipeRight = { notes.remove(note); pinned.remove(note); saveSideNotes(context, notes); context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).edit().putStringSet("pinned_notes", pinned.toSet()).apply() })
-            }
-        }
-    }
-    selected?.let { original ->
-        var draft by remember(original) { mutableStateOf(original) }
-        Dialog(onDismissRequest = { selected = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            Box(Modifier.fillMaxSize().background(Color(0xEE080D10)), contentAlignment = Alignment.Center) {
-            Column(Modifier.fillMaxSize().padding(8.dp).background(Color(0xFF111111), RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 12.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text(if (creating) "New note" else "Edit note", color = pText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Text("×", color = pText, fontSize = 24.sp, modifier = Modifier.clickable { selected = null }.padding(6.dp))
-                }
-                OutlinedTextField(value = draft, onValueChange = { draft = it }, modifier = Modifier.weight(1f).fillMaxWidth(),
-                    placeholder = { Text("Write a note…") }, minLines = 8)
-                Row(Modifier.fillMaxWidth().background(Color(0xFF202124), RoundedCornerShape(12.dp)).padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-                    Text("Copy", color = pAccent, modifier = Modifier.clickable { clipManager.setPrimaryClip(ClipData.newPlainText("note", draft)) }.padding(5.dp))
-                    Text("Share", color = pAccent, modifier = Modifier.clickable { if (draft.isNotBlank()) runCatching { context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, draft), "Share")) } }.padding(5.dp))
-                    Text(if (original in pinned) "Unpin" else "Pin", color = pAccent, modifier = Modifier.clickable {
-                        if (original in pinned) pinned.remove(original) else if (original.isNotBlank()) pinned.add(original)
-                        context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).edit().putStringSet("pinned_notes", pinned.toSet()).apply()
-                    }.padding(5.dp))
-                    Text("Delete", color = Color(0xFFFF6B6B), modifier = Modifier.clickable {
-                        if (!creating) notes.remove(original)
-                        saveSideNotes(context, notes); selected = null
-                    }.padding(5.dp))
-                    Text("Close", color = pAccent, fontWeight = FontWeight.Bold, modifier = Modifier.clickable {
-                        if (draft.isNotBlank()) {
-                            if (creating) notes.add(0, draft) else { val i = notes.indexOf(original); if (i >= 0) notes[i] = draft else notes.add(0, draft) }
-                            if (original in pinned) { pinned.remove(original); pinned.add(draft); context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).edit().putStringSet("pinned_notes", pinned.toSet()).apply() }
-                        }
-                        saveSideNotes(context, notes); selected = null
-                    }.padding(5.dp))
-                }
-            }
+                NoteCard(note, false,
+                    onTap = { clipManager.setPrimaryClip(ClipData.newPlainText("note", note)) },
+                    onLongPress = { viewModel.openNoteEditor(note, false) },
+                    onSwipeLeft = { if (note in pinned) pinned.remove(note) else pinned.add(note); context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).edit().putStringSet("pinned_notes", pinned.toSet()).apply() },
+                    onSwipeRight = { notes.remove(note); pinned.remove(note); saveSideNotes(context, notes); context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).edit().putStringSet("pinned_notes", pinned.toSet()).apply() })
             }
         }
     }
 }
+
+@Composable
+fun NotesEditorOverlay(viewModel: OneHandViewModel) {
+    val context = LocalContext.current
+    val editor by viewModel.noteEditorState.collectAsState()
+    val state = editor ?: return
+    val clipManager = remember { context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
+    val notes = remember(state.original) { mutableStateListOf<String>().apply { addAll(loadSideNotes(context)) } }
+    val pinned = remember(state.original) { mutableStateListOf<String>().apply { addAll(context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).getStringSet("pinned_notes", emptySet())?.toList() ?: emptyList()) } }
+    val prefs = remember { context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE) }
+    fun saveAndClose() {
+        val updated = state.text.trim()
+        if (updated.isNotEmpty()) {
+            if (state.isNew) notes.add(0, updated)
+            else {
+                val index = notes.indexOf(state.original)
+                if (index >= 0) notes[index] = updated else notes.add(0, updated)
+                if (state.original in pinned) { pinned.remove(state.original); pinned.add(updated) }
+            }
+        }
+        saveSideNotes(context, notes.distinct())
+        prefs.edit().putStringSet("pinned_notes", pinned.toSet()).apply()
+        viewModel.dismissNoteEditor()
+    }
+    Dialog(onDismissRequest = { saveAndClose() }, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        Column(Modifier.fillMaxSize().background(Color(0xFF080D10)).padding(10.dp)) {
+            Row(Modifier.fillMaxWidth().background(Color(0xFF10252C), RoundedCornerShape(10.dp)).padding(10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(if (state.isNew) "New Note" else "Edit Note", color = pText, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("×", color = pText, fontSize = 22.sp, modifier = Modifier.clickable { saveAndClose() }.padding(horizontal = 8.dp))
+            }
+            OutlinedTextField(value = state.text, onValueChange = { viewModel.updateNoteEditorText(it) },
+                modifier = Modifier.weight(1f).fillMaxWidth().padding(vertical = 10.dp),
+                placeholder = { Text("Write a note…") }, minLines = 8)
+            Row(Modifier.fillMaxWidth().background(Color(0xFF202124), RoundedCornerShape(12.dp)).padding(vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+                Text("Copy", color = pAccent, modifier = Modifier.clickable { clipManager.setPrimaryClip(ClipData.newPlainText("note", state.text)) }.padding(5.dp))
+                Text("Share", color = pAccent, modifier = Modifier.clickable { if (state.text.isNotBlank()) runCatching { context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, state.text), "Share")) } }.padding(5.dp))
+                Text(if (state.original in pinned) "Unpin" else "Pin", color = pAccent, modifier = Modifier.clickable {
+                    if (state.original in pinned) pinned.remove(state.original) else if (state.text.isNotBlank()) pinned.add(state.text)
+                    prefs.edit().putStringSet("pinned_notes", pinned.toSet()).apply()
+                }.padding(5.dp))
+                Text("Delete", color = Color(0xFFFF6B6B), modifier = Modifier.clickable {
+                    if (!state.isNew) notes.remove(state.original)
+                    saveSideNotes(context, notes.distinct())
+                    if (state.original in pinned) pinned.remove(state.original)
+                    prefs.edit().putStringSet("pinned_notes", pinned.toSet()).apply()
+                    viewModel.dismissNoteEditor()
+                }.padding(5.dp))
+                Text("Close", color = pAccent, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { saveAndClose() }.padding(5.dp))
+            }
+        }
+    }
 }
+
 @Composable
 private fun NoteCard(note: String, pinned: Boolean, onTap: () -> Unit, onLongPress: () -> Unit, onSwipeLeft: () -> Unit, onSwipeRight: () -> Unit) {
     var dragX by remember(note) { mutableFloatStateOf(0f) }

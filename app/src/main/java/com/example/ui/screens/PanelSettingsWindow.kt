@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -42,6 +43,9 @@ fun PanelSettingsWindow(
 ) {
     val s by viewModel.panelSettings.collectAsState()
     val guideType by viewModel.guideType.collectAsState()
+    val settingsContext = LocalContext.current
+    val clipboardPrefs = remember { settingsContext.getSharedPreferences("side_panel_data", android.content.Context.MODE_PRIVATE) }
+    var clipboardLimit by remember { mutableIntStateOf(clipboardPrefs.getInt("clipboard_max_cards", 30).coerceIn(10, 100)) }
 
     var expanded by remember { mutableStateOf(setOf("Permissions")) }
     fun toggleSec(name: String) {
@@ -304,6 +308,32 @@ fun PanelSettingsWindow(
                     SlimSwitch("Sync with Edge Panel", s.syncWithEdgePanel) {
                         viewModel.updateSettings { cur -> cur.copy(syncWithEdgePanel = it) }
                     }
+                }
+            }
+
+            // Clipboard history display count
+            item {
+                SlimCollapsibleSection("Clipboard History", "Clipboard History" in expanded, { toggleSec("Clipboard History") }) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Cards shown: $clipboardLimit", color = Color(0xFF80DEEA), fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Reset", color = Color(0xFF00E5FF), fontSize = 10.sp,
+                            modifier = Modifier.clickable {
+                                clipboardLimit = 30
+                                clipboardPrefs.edit().putInt("clipboard_max_cards", 30).apply()
+                            }.padding(horizontal = 8.dp, vertical = 3.dp))
+                    }
+                    Slider(
+                        value = clipboardLimit.toFloat(),
+                        onValueChange = { value ->
+                            clipboardLimit = (value / 5f).toInt() * 5
+                            clipboardPrefs.edit().putInt("clipboard_max_cards", clipboardLimit.coerceIn(10, 100)).apply()
+                        },
+                        valueRange = 10f..100f,
+                        steps = 17,
+                        modifier = Modifier.fillMaxWidth().height(24.dp),
+                        colors = SliderDefaults.colors(thumbColor = Color(0xFF00E5FF), activeTrackColor = Color(0xFF00BCD4), inactiveTrackColor = Color(0xFF1E4E59))
+                    )
+                    Text("Clipboard tab mein maximum $clipboardLimit cards dikhaye jayenge.", color = Color(0xFF9CA3AF), fontSize = 9.sp)
                 }
             }
 

@@ -71,6 +71,8 @@ fun AddQuickAccessModal(
     val tilesTab by viewModel.tilesTab.collectAsState()
     val quickSettings by viewModel.quickSettings.collectAsState()
     val pendingGesture by viewModel.pendingGestureToBind.collectAsState()
+    val sidePanelAddMode by viewModel.sidePanelAddMode.collectAsState()
+    val sidePanelItemIds by viewModel.sidePanelItemIds.collectAsState()
     val selectedLetter by viewModel.selectedAlphabetLetter.collectAsState()
 
     var selectedAddTab by remember(tilesTab, pendingGesture) { mutableStateOf("ACTIONS") }
@@ -140,10 +142,7 @@ fun AddQuickAccessModal(
         onGeometryChange = { x, y, w, h ->
             viewModel.updateQuickAccessGeometry(x, y, w, h)
         },
-        onClose = {
-            viewModel.navigateTo(ActiveWindow.MAIN_PANEL)
-            viewModel.togglePanel(false)
-        },
+        onClose = { viewModel.finishAddWindow() },
         modifier = modifier
     ) {
         Column(
@@ -163,13 +162,13 @@ fun AddQuickAccessModal(
                     viewModel.setItemFilterType(ItemType.APP)
                     viewModel.selectAlphabetLetter(null)
                 }, "filter_pill_apps")
-                if (pendingGesture == null && !tilesTab) {
+                if (pendingGesture == null && !tilesTab && !sidePanelAddMode) {
                     FilterPill("TRACKER", selectedAddTab == "TRACKER", {
                         selectedAddTab = "TRACKER"
                         viewModel.selectAlphabetLetter(null)
                     }, "filter_pill_tracker")
                 }
-                if (pendingGesture == null && !tilesTab && selectedAddTab != "TRACKER") {
+                if (pendingGesture == null && !tilesTab && !sidePanelAddMode && selectedAddTab != "TRACKER") {
                     Spacer(Modifier.weight(1f))
                     TextButton(onClick = { newGroupMode = !newGroupMode }) {
                         Text("+ Group", color = Color(0xFF80DEEA), fontSize = 11.sp)
@@ -196,7 +195,9 @@ fun AddQuickAccessModal(
                 }
             }
 
-            if (pendingGesture == null && !tilesTab && selectedAddTab != "TRACKER") {
+            if (sidePanelAddMode) {
+                Text("Add apps and actions to Side Panel", color = Color(0xFF80DEEA), fontSize = 11.sp)
+            } else if (pendingGesture == null && !tilesTab && selectedAddTab != "TRACKER") {
                 Text("Add to group: $target", color = Color(0xFF80DEEA), fontSize = 11.sp)
             } else if (tilesTab && selectedAddTab != "TRACKER") {
                 Text("Quick Settings · Apps and Actions", color = Color(0xFF9CA3AF), fontSize = 11.sp)
@@ -285,12 +286,14 @@ fun AddQuickAccessModal(
                     }
                     val added = when {
                         pendingGesture != null -> false
+                        sidePanelAddMode -> item.id in sidePanelItemIds
                         tilesTab -> quickSetting?.isVisible == true
                         else -> isInGroup(item, target, groupAdded, groupRemoved, manualGroups)
                     }
                     Column {
                         QuickAccessListItem(item = item, isAdded = added, onToggle = {
                             when {
+                                sidePanelAddMode -> viewModel.toggleSidePanelItem(item.id)
                                 pendingGesture != null && item.type == ItemType.ACTION ->
                                     viewModel.bindActionAndFinish(item, actionTileId ?: item.id)
                                 pendingGesture != null -> viewModel.bindAndFinish(item)
@@ -355,7 +358,7 @@ fun AddQuickAccessModal(
                 horizontalArrangement = Arrangement.End
             ) {
                 TextButton(
-                    onClick = { viewModel.navigateTo(ActiveWindow.MAIN_PANEL) },
+                    onClick = { viewModel.finishAddWindow() },
                     modifier = Modifier.testTag("close_add_quick_access_button")
                 ) {
                     Text(

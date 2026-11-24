@@ -39,6 +39,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+data class SideNoteEditorState(val original: String, val text: String, val isNew: Boolean)
+
 class OneHandViewModel(app: Application) : AndroidViewModel(app) {
 
     // Current active window: starts with MAIN_PANEL as requested ("App open hote hi sidhe side panel open hoga")
@@ -173,6 +175,47 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _pendingGesture = MutableStateFlow<String?>(null)
     val pendingGestureToBind: StateFlow<String?> = _pendingGesture.asStateFlow()
+    private val _noteEditorState = MutableStateFlow<SideNoteEditorState?>(null)
+    val noteEditorState: StateFlow<SideNoteEditorState?> = _noteEditorState.asStateFlow()
+    fun openNoteEditor(note: String, isNew: Boolean = false) {
+        _noteEditorState.value = SideNoteEditorState(note, note, isNew)
+    }
+    fun updateNoteEditorText(value: String) {
+        _noteEditorState.update { it?.copy(text = value) }
+    }
+    fun dismissNoteEditor() { _noteEditorState.value = null }
+
+    private val _sidePanelAddMode = MutableStateFlow(false)
+    val sidePanelAddMode: StateFlow<Boolean> = _sidePanelAddMode.asStateFlow()
+    private val _sidePanelItemIds = MutableStateFlow(
+        appContext.getSharedPreferences("side_panel_data", android.content.Context.MODE_PRIVATE)
+            .getStringSet("side_panel_item_ids", emptySet())?.toSet() ?: emptySet()
+    )
+    val sidePanelItemIds: StateFlow<Set<String>> = _sidePanelItemIds.asStateFlow()
+
+    fun toggleSidePanelItem(itemId: String) {
+        _sidePanelItemIds.update { current ->
+            val next = if (itemId in current) current - itemId else if (current.size >= 10) {
+                showToast("Side Panel mein maximum 10 items add kar sakte hain")
+                current
+            } else current + itemId
+            appContext.getSharedPreferences("side_panel_data", android.content.Context.MODE_PRIVATE)
+                .edit().putStringSet("side_panel_item_ids", next).apply()
+            val name = _masterItems.value.firstOrNull { it.id == itemId }?.name ?: itemId
+            if (next != current) showToast(if (itemId in current) "Removed '$name' from Side Panel" else "Added '$name' to Side Panel")
+            next
+        }
+    }
+
+    fun finishAddWindow() {
+        if (_sidePanelAddMode.value) {
+            _sidePanelAddMode.value = false
+            navigateTo(ActiveWindow.SIDE_PANEL)
+        } else {
+            navigateTo(ActiveWindow.MAIN_PANEL)
+            togglePanel(false)
+        }
+    }
 
     fun startBindGesture(gestureName: String) {
         _pendingGesture.value = gestureName
@@ -188,6 +231,8 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
             _pendingGesture.value = null
             showToast("$g → ${item.name}")
             navigateTo(ActiveWindow.PANEL_SETTINGS)
+        } else if (_sidePanelAddMode.value) {
+            toggleSidePanelItem(item.id)
         } else {
             toggleItemAdded(item.id)
         }
@@ -650,7 +695,8 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
     private fun firstEditableGroup(): String =
         _availableCategories.value.firstOrNull { it !in SPECIAL_GROUPS } ?: "Tools"
 
-    fun openAddWindow(forTiles: Boolean, newGroup: Boolean = false) {
+    fun openAddWindow(forTiles: Boolean, newGroup: Boolean = false, forSidePanel: Boolean = false) {
+        _sidePanelAddMode.value = forSidePanel
         _tilesTab.value = forTiles
         newGroupRequested = newGroup
         val sel = _selectedCategory.value

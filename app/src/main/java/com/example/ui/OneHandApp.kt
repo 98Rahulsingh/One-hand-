@@ -2,6 +2,7 @@ package com.example.ui
 
 import com.example.ui.screens.QuickAppScreen
 import com.example.ui.screens.SidePanelScreen
+import com.example.ui.screens.NotesEditorOverlay
 
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -79,6 +80,9 @@ fun OneHandApp(
     // Proper Back Navigation
     if (!overlayMode) BackHandler {
         when {
+            activeWindow == ActiveWindow.ADD_QUICK_ACCESS -> {
+                viewModel.finishAddWindow()
+            }
             activeWindow != ActiveWindow.MAIN_PANEL -> {
                 viewModel.navigateTo(ActiveWindow.MAIN_PANEL)
             }
@@ -240,6 +244,9 @@ fun OneHandApp(
                 .fillMaxHeight(panelSettings.panelHeightPercent.coerceIn(30, 95) / 100f)
                 .offset(y = ((panelSettings.verticalPosition - 5) * 45 + panelSettings.verticalOffsetDp).dp)
         ) { PanelSettingsWindow(viewModel = viewModel) }
+
+        // Independent full-screen Notes editor; hosted outside the Side Panel visibility branch.
+        NotesEditorOverlay(viewModel)
 
         // Toast Feedback Banner Overlay
         AnimatedVisibility(
