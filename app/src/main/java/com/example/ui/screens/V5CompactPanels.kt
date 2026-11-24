@@ -5,6 +5,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -64,13 +67,15 @@ fun QuickPanelScreen(viewModel: OneHandViewModel, modifier: Modifier = Modifier)
             showActionNames = panelSettings.showActionNameInList,
             onToggleSetting = { viewModel.toggleQuickSetting(it) },
             onOpenSettings = { viewModel.navigateTo(ActiveWindow.PANEL_SETTINGS) },
-            onOpenActionsAdd = { viewModel.openAddWindow(forTiles = true) }
+            onOpenActionsAdd = { viewModel.openAddWindow(forTiles = true) },
+            fiveColumns = true
         )
 
         V5EdgeSlider(
-            label = "Seek",
+            label = null,
             value = media.currentSeconds.toFloat(),
-            range = 0f..media.totalSeconds.coerceAtLeast(1).toFloat()
+            range = 0f..media.totalSeconds.coerceAtLeast(1).toFloat(),
+            showSeekTime = true
         ) { viewModel.seekMedia(it.toInt()) }
 
         V5Media5Buttons(viewModel, media.isPlaying)
@@ -125,7 +130,7 @@ fun QuickToolsScreen(viewModel: OneHandViewModel, modifier: Modifier = Modifier)
             onToggleSetting = { viewModel.toggleQuickSetting(it) },
             onOpenSettings = { viewModel.navigateTo(ActiveWindow.PANEL_SETTINGS) },
             onOpenActionsAdd = { viewModel.openAddWindow(forTiles = true) },
-            twoColumns = true
+            fiveColumns = true
         )
     }
 }
@@ -244,15 +249,22 @@ private fun V5DraggableHeader(
 }
 
 @Composable
-private fun V5EdgeSlider(label: String, value: Float, range: ClosedFloatingPointRange<Float>, onChange: (Float) -> Unit) {
-    Row(
+private fun V5EdgeSlider(label: String?, value: Float, range: ClosedFloatingPointRange<Float>, showSeekTime: Boolean = false, onChange: (Float) -> Unit) {
+    var dragging by remember { mutableStateOf(false) }
+    var preview by remember(value) { mutableFloatStateOf(value) }
+    Column(Modifier.fillMaxWidth()) {
+        if (showSeekTime && dragging) {
+            Text("${preview.toInt() / 60}:${(preview.toInt() % 60).toString().padStart(2, '0')} / ${range.endInclusive.toInt() / 60}:${(range.endInclusive.toInt() % 60).toString().padStart(2, '0')}", color = Color(0xFF80DEEA), fontSize = 9.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
+        }
+        Row(
         modifier = Modifier.fillMaxWidth().height(22.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, color = Color(0xFF80DEEA), fontSize = 9.sp, modifier = Modifier.width(42.dp))
+        if (label != null) Text(label, color = Color(0xFF80DEEA), fontSize = 9.sp, modifier = Modifier.width(42.dp))
         Slider(
-            value = value.coerceIn(range.start, range.endInclusive),
-            onValueChange = onChange,
+            value = (if (showSeekTime) preview else value).coerceIn(range.start, range.endInclusive),
+            onValueChange = { preview = it; dragging = true; onChange(it) },
+            onValueChangeFinished = { dragging = false },
             valueRange = range,
             modifier = Modifier.weight(1f).height(16.dp),
             colors = SliderDefaults.colors(
@@ -261,6 +273,7 @@ private fun V5EdgeSlider(label: String, value: Float, range: ClosedFloatingPoint
                 inactiveTrackColor = Color(0xFF1E4E59)
             )
         )
+        }
     }
 }
 

@@ -956,12 +956,27 @@ fun QuickSettingsRow(
     onOpenActionsAdd: () -> Unit,
     reorderId: String? = null,
     onLongPressSetting: (String) -> Unit = {},
-    twoColumns: Boolean = false
+    twoColumns: Boolean = false,
+    fiveColumns: Boolean = false
 ) {
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF0C242A)),
         border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1A464F))) {
-        if (twoColumns) {
+        if (fiveColumns) {
+            Column(Modifier.fillMaxWidth().padding(5.dp)) {
+                LazyVerticalGrid(columns = GridCells.Fixed(5), modifier = Modifier.fillMaxWidth().heightIn(max = 160.dp),
+                    verticalArrangement = Arrangement.spacedBy(5.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    items(quickSettings.filter { it.isVisible }) { item ->
+                        QuickSettingChip(item, onToggle = { onToggleSetting(item.id) },
+                            onLongPress = { onLongPressSetting(item.id) }, isReorderTarget = reorderId == item.id)
+                    }
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    Text("＋", color = Color(0xFF00E5FF), modifier = Modifier.clickable { onOpenActionsAdd() }.padding(horizontal = 10.dp))
+                    Text("⚙", color = Color(0xFF00E5FF), modifier = Modifier.clickable { onOpenSettings() }.padding(horizontal = 10.dp))
+                }
+            }
+        } else if (twoColumns) {
             Column(Modifier.fillMaxWidth().padding(5.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 quickSettings.filter { it.isVisible }.chunked(2).forEach { pair ->
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
