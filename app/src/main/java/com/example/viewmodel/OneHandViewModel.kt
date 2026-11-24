@@ -439,6 +439,11 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Close the currently displayed floating panel without navigating back to Edge Panel. */
+    fun dismissFloatingWindowWithoutRedirect() {
+        _isPanelOpen.value = false
+    }
+
     fun togglePanel(open: Boolean? = null) {
         _isPanelOpen.value = open ?: !_isPanelOpen.value
     }

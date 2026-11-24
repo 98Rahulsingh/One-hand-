@@ -14,6 +14,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -35,6 +36,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
@@ -69,7 +72,7 @@ fun QuickAppScreen(viewModel: OneHandViewModel, widthDp: Float, heightDp: Float)
             positionStore.put("side_quick_app", Rect(offsetX, offsetY, widthDp.toInt(), heightDp.toInt()))
         } }, horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("QUICK APP", color = pAccent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            Text("×", color = pText, modifier = Modifier.clickable { positionStore.put("side_quick_app", Rect(offsetX, offsetY, widthDp.toInt(), heightDp.toInt())); viewModel.dismissFloatingWindow() }.padding(2.dp))
+            Text("×", color = pText, modifier = Modifier.clickable { positionStore.put("side_quick_app", Rect(offsetX, offsetY, widthDp.toInt(), heightDp.toInt())); viewModel.dismissFloatingWindowWithoutRedirect() }.padding(2.dp))
         }
         Row(Modifier.fillMaxWidth()) {
             Text("MOST USED", color = pAccent, fontSize = 8.sp, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
@@ -105,13 +108,6 @@ fun SidePanelScreen(viewModel: OneHandViewModel, widthDp: Float, heightDp: Float
         Column(Modifier.offset { IntOffset(offsetX, offsetY) }.then(if (expanded) Modifier.fillMaxSize() else Modifier.width(widthDp.dp).height(heightDp.dp))
             .clip(RoundedCornerShape(if (expanded) 0.dp else 14.dp)).background(pBg)
             .border(if (expanded) 0.dp else 1.dp, Color(0xFF1E4E59), RoundedCornerShape(if (expanded) 0.dp else 14.dp)).padding(8.dp)) {
-            Row(Modifier.fillMaxWidth().pointerInput(expanded) { detectDragGestures { change, amount ->
-                if (!expanded) { change.consume(); offsetX += amount.x.roundToInt(); offsetY += amount.y.roundToInt()
-                    positionStore.put("side_side_panel", Rect(offsetX, offsetY, widthDp.toInt(), heightDp.toInt())) }
-            } }, horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("SIDE PANEL", color = pAccent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.width(1.dp))
-            }
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when (tab) {
                     "Action" -> SideActionTab(viewModel)
@@ -120,9 +116,20 @@ fun SidePanelScreen(viewModel: OneHandViewModel, widthDp: Float, heightDp: Float
                     "Files" -> FilesTab(context)
                 }
             }
-            Row(Modifier.fillMaxWidth().background(pCard, RoundedCornerShape(8.dp)), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                Text(if (expanded) "Collapse" else "Expand", color = pAccent, fontSize = 10.sp, modifier = Modifier.clickable { expanded = !expanded }.padding(horizontal = 12.dp, vertical = 7.dp))
-                Text("×", color = pText, fontSize = 16.sp, modifier = Modifier.clickable { positionStore.put("side_side_panel", Rect(offsetX, offsetY, widthDp.toInt(), heightDp.toInt())); viewModel.dismissFloatingWindow() }.padding(horizontal = 12.dp, vertical = 5.dp))
+            Row(Modifier.fillMaxWidth().pointerInput(expanded) { detectDragGestures { change, amount ->
+                if (!expanded) { change.consume(); offsetX += amount.x.roundToInt(); offsetY += amount.y.roundToInt()
+                    positionStore.put("side_side_panel", Rect(offsetX, offsetY, widthDp.toInt(), heightDp.toInt())) }
+            } }.background(pCard, RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("SIDE PANEL", color = pAccent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (expanded) "↙" else "↗", color = pAccent, fontSize = 17.sp,
+                        modifier = Modifier.clickable { expanded = !expanded }.padding(horizontal = 10.dp, vertical = 2.dp))
+                    Text("×", color = pText, fontSize = 18.sp, modifier = Modifier.clickable {
+                        positionStore.put("side_side_panel", Rect(offsetX, offsetY, widthDp.toInt(), heightDp.toInt()))
+                        viewModel.dismissFloatingWindowWithoutRedirect()
+                    }.padding(horizontal = 8.dp, vertical = 2.dp))
+                }
             }
             Row(Modifier.fillMaxWidth().background(pCard, RoundedCornerShape(8.dp)), horizontalArrangement = Arrangement.SpaceEvenly) {
                 listOf("Action", "Clipboard", "Notes", "Files").forEach { name ->
@@ -215,9 +222,14 @@ private fun ClipboardTab(context: Context) {
         val canUpper = draft.any { it.isLowerCase() }
         val canLower = draft.any { it.isUpperCase() }
         Box(Modifier.fillMaxSize().background(pBg), contentAlignment = Alignment.TopCenter) {
-            Column(Modifier.fillMaxSize().padding(6.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF202124)).padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Clipboard text", color = pText, fontWeight = FontWeight.Bold); Text("×", color = pText, modifier = Modifier.clickable { selected = null }) }
-                Text(draft, color = pText, fontSize = 13.sp, maxLines = 5)
+            Column(Modifier.fillMaxSize().padding(6.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF202124)).padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Clipboard text", color = pText, fontWeight = FontWeight.Bold)
+                        Text("×", color = pText, modifier = Modifier.clickable { selected = null })
+                    }
+                    Text(draft, color = pText, fontSize = 13.sp)
+                }
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Save as Note", color = pAccent, modifier = Modifier.clickable { saveAsNote(draft); selected = null }.padding(5.dp))
                     Text("Search", color = pAccent, modifier = Modifier.clickable { runCatching { context.startActivity(Intent(Intent.ACTION_WEB_SEARCH).putExtra(android.app.SearchManager.QUERY, draft).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }.padding(5.dp))
@@ -238,8 +250,8 @@ private fun ClipboardTab(context: Context) {
             }
         }
         }
-    }
-}
+        }
+        }
 @Composable
 private fun ClipboardCard(value: String, isPinned: Boolean, onTap: () -> Unit, onLongPress: () -> Unit) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp)).background(Color(0xFF263238))
@@ -274,8 +286,9 @@ private fun NotesTab(context: Context) {
     }
     selected?.let { original ->
         var draft by remember(original) { mutableStateOf(original) }
-        Box(Modifier.fillMaxSize().background(Color(0xEE080D10)).clickable { selected = null }, contentAlignment = Alignment.Center) {
-            Column(Modifier.fillMaxSize().padding(8.dp).background(Color(0xFF111111), RoundedCornerShape(12.dp)).clickable(enabled = false) {}.padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Dialog(onDismissRequest = { selected = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            Box(Modifier.fillMaxSize().background(Color(0xEE080D10)), contentAlignment = Alignment.Center) {
+            Column(Modifier.fillMaxSize().padding(8.dp).background(Color(0xFF111111), RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 12.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(if (creating) "New note" else "Edit note", color = pText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Text("×", color = pText, fontSize = 24.sp, modifier = Modifier.clickable { selected = null }.padding(6.dp))
@@ -303,9 +316,10 @@ private fun NotesTab(context: Context) {
                     }.padding(5.dp))
                 }
             }
-        }
+            }
         }
     }
+}
 }
 @Composable
 private fun NoteCard(note: String, pinned: Boolean, onTap: () -> Unit, onLongPress: () -> Unit, onSwipeLeft: () -> Unit, onSwipeRight: () -> Unit) {
