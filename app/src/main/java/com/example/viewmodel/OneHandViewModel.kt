@@ -208,7 +208,12 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun finishAddWindow() {
-        if (_sidePanelAddMode.value) {
+        if (_pendingGesture.value != null) {
+            _pendingGesture.value = null
+            _sidePanelAddMode.value = false
+            _tilesTab.value = false
+            navigateTo(ActiveWindow.PANEL_SETTINGS)
+        } else if (_sidePanelAddMode.value) {
             _sidePanelAddMode.value = false
             navigateTo(ActiveWindow.SIDE_PANEL)
         } else {
@@ -218,6 +223,8 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun startBindGesture(gestureName: String) {
+        _sidePanelAddMode.value = false
+        _tilesTab.value = false
         _pendingGesture.value = gestureName
         navigateTo(ActiveWindow.ADD_QUICK_ACCESS)
     }

@@ -36,8 +36,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
@@ -347,7 +346,8 @@ fun NotesEditorOverlay(viewModel: OneHandViewModel) {
         prefs.edit().putStringSet("pinned_notes", pinned.toSet()).apply()
         viewModel.dismissNoteEditor()
     }
-    Dialog(onDismissRequest = { saveAndClose() }, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+    BackHandler(enabled = true) { saveAndClose() }
+    Box(Modifier.fillMaxSize().background(Color(0xCC000000)), contentAlignment = Alignment.Center) {
         Column(Modifier.fillMaxSize().background(Color(0xFF080D10)).padding(10.dp)) {
             Row(Modifier.fillMaxWidth().background(Color(0xFF10252C), RoundedCornerShape(10.dp)).padding(10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
