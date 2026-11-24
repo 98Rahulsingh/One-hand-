@@ -152,6 +152,7 @@ data class PanelSettings(
 enum class ActiveWindow {
     MAIN_PANEL,        // Unified 1: Edge Panel
     QUICK_PANEL,       // Unified 2: Quick Panel (Swipe Left from Edge Panel)
+    SIDE_PANEL,        // Independent Side Panel: Actions, Clipboard, Notes, Files
     QUICK_TOOLS,       // Independent 1: Quick Tools Floating Panel
     MEDIA_CONTROL,     // Independent 2: Media Control Floating Panel
     ADD_QUICK_ACCESS,  // Unified Add Item & Group/Action Selector

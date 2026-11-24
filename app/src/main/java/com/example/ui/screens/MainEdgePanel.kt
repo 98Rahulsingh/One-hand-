@@ -339,6 +339,11 @@ fun MainEdgePanel(
                             }
 
 
+                            Text(
+                                text = "SIDE", color = Color(0xFF80DEEA), fontSize = 9.sp, fontWeight = FontWeight.Bold,
+                                modifier = Modifier.clickable { viewModel.navigateTo(ActiveWindow.SIDE_PANEL) }.padding(horizontal = 5.dp, vertical = 6.dp)
+                            )
+
                             // Panel Settings
                             IconButton(
                                 onClick = { viewModel.navigateTo(ActiveWindow.PANEL_SETTINGS) },

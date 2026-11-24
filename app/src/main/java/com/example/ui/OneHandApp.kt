@@ -57,6 +57,7 @@ import com.example.ui.screens.PanelSettingsWindow
 import com.example.ui.screens.QuickPanelScreen
 import com.example.ui.screens.QuickToolsScreen
 import com.example.ui.screens.MediaControlScreen
+import com.example.ui.screens.SidePanelScreen
 import com.example.viewmodel.OneHandViewModel
 
 @Composable
@@ -204,6 +205,15 @@ fun OneHandApp(
             modifier = Modifier.align(Alignment.Center).padding(6.dp)
         ) {
             MediaControlScreen(viewModel = viewModel, modifier = Modifier.width(panelSettings.mediaControlWidthDp.dp).height(panelSettings.mediaControlLengthDp.dp))
+        }
+
+        AnimatedVisibility(
+            visible = (activeWindow == ActiveWindow.SIDE_PANEL && isPanelOpen),
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(if (panelSettings.isRightEdge) Alignment.CenterEnd else Alignment.CenterStart).padding(6.dp)
+        ) {
+            SidePanelScreen(viewModel = viewModel, modifier = Modifier.width(280.dp).height(440.dp))
         }
 
         // Window 2: Add Quick Access Modal (Matching Image 1)
