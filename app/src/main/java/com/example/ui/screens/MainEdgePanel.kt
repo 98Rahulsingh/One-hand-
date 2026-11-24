@@ -19,6 +19,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -963,17 +964,31 @@ fun QuickSettingsRow(
         colors = CardDefaults.cardColors(containerColor = Color(0xFF0C242A)),
         border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1A464F))) {
         if (fiveColumns) {
-            Column(Modifier.fillMaxWidth().padding(5.dp)) {
-                LazyVerticalGrid(columns = GridCells.Fixed(5), modifier = Modifier.fillMaxWidth().heightIn(max = 160.dp),
-                    verticalArrangement = Arrangement.spacedBy(5.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    items(quickSettings.filter { it.isVisible }) { item ->
+            val visibleItems = quickSettings.filter { it.isVisible }
+            val pageCount = ((visibleItems.size + 9) / 10).coerceAtLeast(1)
+            var page by remember(visibleItems.map { it.id }) { mutableIntStateOf(0) }
+            var dragTotal by remember { mutableFloatStateOf(0f) }
+            Column(Modifier.fillMaxWidth().padding(5.dp)
+                .pointerInput(page, pageCount) {
+                    detectVerticalDragGestures(onVerticalDrag = { change, amount ->
+                        change.consume(); dragTotal += amount
+                    }, onDragEnd = {
+                        if (dragTotal < -28f) page = (page + 1).coerceAtMost(pageCount - 1)
+                        else if (dragTotal > 28f) page = (page - 1).coerceAtLeast(0)
+                        dragTotal = 0f
+                    })
+                }) {
+                LazyVerticalGrid(columns = GridCells.Fixed(5), modifier = Modifier.fillMaxWidth().height(112.dp),
+                    userScrollEnabled = false, verticalArrangement = Arrangement.spacedBy(5.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    items(visibleItems.drop(page * 10).take(10), key = { it.id }) { item ->
                         QuickSettingChip(item, onToggle = { onToggleSetting(item.id) },
                             onLongPress = { onLongPressSetting(item.id) }, isReorderTarget = reorderId == item.id)
                     }
                 }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    Text("＋", color = Color(0xFF00E5FF), modifier = Modifier.clickable { onOpenActionsAdd() }.padding(horizontal = 10.dp))
-                    Text("⚙", color = Color(0xFF00E5FF), modifier = Modifier.clickable { onOpenSettings() }.padding(horizontal = 10.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (pageCount > 1) "${page + 1}/$pageCount  ·  Swipe ↑" else "1/1", color = Color(0xFF80DEEA), fontSize = 8.sp)
+                    Row { Text("＋", color = Color(0xFF00E5FF), modifier = Modifier.clickable { onOpenActionsAdd() }.padding(horizontal = 10.dp))
+                        Text("⚙", color = Color(0xFF00E5FF), modifier = Modifier.clickable { onOpenSettings() }.padding(horizontal = 10.dp)) }
                 }
             }
         } else if (twoColumns) {

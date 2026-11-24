@@ -182,46 +182,44 @@ private fun ClipboardTab(context: Context) {
         if (pinned.isNotEmpty()) Text("PINNED", color = pAccent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             items(pinned.toList(), key = { "pin_$it" }) { value ->
-                ClipboardCard(value, true, { selected = value }, { selected = value })
+                ClipboardCard(value, true, { copyText(value) }, { selected = value })
             }
             items(clips.filter { it !in pinned && it.contains(query, true) }, key = { it }) { value ->
-                ClipboardCard(value, false, { selected = value }, { selected = value })
+                ClipboardCard(value, false, { copyText(value) }, { selected = value })
             }
         }
         OutlinedTextField(value = query, onValueChange = { query = it }, label = { Text("Search clipboard") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
     }
     selected?.let { value ->
         var draft by remember(value) { mutableStateOf(value) }
-        val url = Regex("https?://\\S+", RegexOption.IGNORE_CASE).find(value)?.value
-        val hasCleanup = value.contains(Regex("\\s{2,}|\\n"))
-        val hasUpper = value.any { it.isUpperCase() }
-        val hasLower = value.any { it.isLowerCase() }
-        AlertDialog(onDismissRequest = { selected = null }, containerColor = Color(0xFF202124),
-            title = { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Clipboard text", color = pText); Text("×", color = pText, modifier = Modifier.clickable { selected = null }) } },
-            text = {
-                Column(Modifier.fillMaxWidth()) {
-                    Text(draft, color = pText, fontSize = 14.sp)
-                    Spacer(Modifier.height(10.dp)); Text("TOOLS", color = pAccent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Text("Save as note", color = pAccent, modifier = Modifier.clickable { saveAsNote(draft) }.padding(6.dp))
-                        Text("Search", color = pAccent, modifier = Modifier.clickable { query = draft.take(30); selected = null }.padding(6.dp))
-                        if (url != null) Text("Open link", color = pAccent, modifier = Modifier.clickable { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }.padding(6.dp))
-                        if (hasCleanup) Text("Clean up", color = pAccent, modifier = Modifier.clickable { draft = draft.replace(Regex("\\s+"), " ").trim() }.padding(6.dp))
-                        if (hasCleanup) Text("One line", color = pAccent, modifier = Modifier.clickable { draft = draft.replace(Regex("[\\r\\n]+"), " ").replace(Regex("\\s+"), " ").trim() }.padding(6.dp))
-                        if (hasLower) Text("UPPERCASE", color = pAccent, modifier = Modifier.clickable { draft = draft.uppercase() }.padding(6.dp))
-                        if (hasUpper) Text("lowercase", color = pAccent, modifier = Modifier.clickable { draft = draft.lowercase() }.padding(6.dp))
-                        if (hasLower) Text("Title case", color = pAccent, modifier = Modifier.clickable { draft = draft.lowercase().split(" ").joinToString(" ") { w -> w.replaceFirstChar { it.uppercase() } } }.padding(6.dp))
-                    }
+        val url = Regex("https?://\\S+", RegexOption.IGNORE_CASE).find(draft)?.value
+        val cleanup = draft.contains(Regex("\\s{2,}|\\n"))
+        val oneLine = draft.contains('\n') || draft.contains('\r')
+        val canUpper = draft.any { it.isLowerCase() }
+        val canLower = draft.any { it.isUpperCase() }
+        Dialog(onDismissRequest = { selected = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF202124)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Clipboard text", color = pText, fontWeight = FontWeight.Bold); Text("×", color = pText, modifier = Modifier.clickable { selected = null }) }
+                Text(draft, color = pText, fontSize = 13.sp, maxLines = 5)
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Save as Note", color = pAccent, modifier = Modifier.clickable { saveAsNote(draft); selected = null }.padding(5.dp))
+                    Text("Search", color = pAccent, modifier = Modifier.clickable { query = draft.take(30); selected = null }.padding(5.dp))
+                    if (cleanup) Text("Cleanup", color = pAccent, modifier = Modifier.clickable { draft = draft.replace(Regex("\\s+"), " ").trim() }.padding(5.dp))
+                    if (oneLine) Text("One Line", color = pAccent, modifier = Modifier.clickable { draft = draft.replace(Regex("[\\r\\n]+"), " ").replace(Regex("\\s+"), " ").trim() }.padding(5.dp))
+                    if (canUpper) Text("Uppercase", color = pAccent, modifier = Modifier.clickable { draft = draft.uppercase() }.padding(5.dp))
+                    if (canLower) Text("Lowercase", color = pAccent, modifier = Modifier.clickable { draft = draft.lowercase() }.padding(5.dp))
+                    if (canUpper) Text("Title Case", color = pAccent, modifier = Modifier.clickable { draft = draft.lowercase().split(Regex("\\s+")).joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } } }.padding(5.dp))
                 }
-            },
-            confirmButton = { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                TextButton(onClick = { copyText(draft) }) { Text("Copy") }
-                TextButton(onClick = { runCatching { context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, draft), "Share")) } }) { Text("Share") }
-                TextButton(onClick = { if (value in pinned) pinned.remove(value) else pinned.add(value); context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).edit().putStringSet("pinned_clips", pinned.toSet()).apply() }) { Text(if (value in pinned) "Unpin" else "Pin") }
-                TextButton(onClick = { clips.remove(value); pinned.remove(value); saveSideClips(context, clips); context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).edit().putStringSet("pinned_clips", pinned.toSet()).apply(); selected = null }) { Text("Delete") }
-                TextButton(onClick = { selected = null }) { Text("Done") }
-            } }
-        )
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (url != null) Text("Open Link", color = pAccent, modifier = Modifier.clickable { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }.padding(4.dp))
+                    Text("Copy", color = pAccent, modifier = Modifier.clickable { copyText(draft) }.padding(4.dp))
+                    Text("Share", color = pAccent, modifier = Modifier.clickable { runCatching { context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, draft), "Share")) } }.padding(4.dp))
+                    Text(if (value in pinned) "Unpin" else "Pin", color = pAccent, modifier = Modifier.clickable { if (value in pinned) pinned.remove(value) else pinned.add(value); context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).edit().putStringSet("pinned_clips", pinned.toSet()).apply() }.padding(4.dp))
+                    Text("Delete", color = Color(0xFFFF6B6B), modifier = Modifier.clickable { clips.remove(value); pinned.remove(value); saveSideClips(context, clips); context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).edit().putStringSet("pinned_clips", pinned.toSet()).apply(); selected = null }.padding(4.dp))
+                    Text("Close", color = pText, modifier = Modifier.clickable { selected = null }.padding(4.dp))
+                }
+            }
+        }
     }
 }
 @Composable
@@ -248,10 +246,10 @@ private fun NotesTab(context: Context) {
         }
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             items(pinned.toList(), key = { "p_$it" }) { note ->
-                NoteCard(note, true) { selected = note; creating = false }
+                NoteCard(note, true, onTap = { clipManager.setPrimaryClip(ClipData.newPlainText("note", note)) }, onLongPress = { selected = note; creating = false }, onSwipeLeft = { if (note in pinned) pinned.remove(note) else pinned.add(note); context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).edit().putStringSet("pinned_notes", pinned.toSet()).apply() }, onSwipeRight = { notes.remove(note); pinned.remove(note); saveSideNotes(context, notes); context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).edit().putStringSet("pinned_notes", pinned.toSet()).apply() })
             }
             items(notes.filter { it !in pinned }, key = { it }) { note ->
-                NoteCard(note, false) { selected = note; creating = false }
+                NoteCard(note, false, onTap = { clipManager.setPrimaryClip(ClipData.newPlainText("note", note)) }, onLongPress = { selected = note; creating = false }, onSwipeLeft = { if (note in pinned) pinned.remove(note) else pinned.add(note); context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).edit().putStringSet("pinned_notes", pinned.toSet()).apply() }, onSwipeRight = { notes.remove(note); pinned.remove(note); saveSideNotes(context, notes); context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).edit().putStringSet("pinned_notes", pinned.toSet()).apply() })
             }
         }
     }
@@ -290,13 +288,17 @@ private fun NotesTab(context: Context) {
     }
 }
 @Composable
-private fun NoteCard(note: String, pinned: Boolean, onClick: () -> Unit) {
+private fun NoteCard(note: String, pinned: Boolean, onTap: () -> Unit, onLongPress: () -> Unit, onSwipeLeft: () -> Unit, onSwipeRight: () -> Unit) {
+    var dragX by remember(note) { mutableFloatStateOf(0f) }
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp)).background(if (pinned) Color(0xFF263238) else Color(0xFF1B1B1B))
-        .clickable(onClick = onClick).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        .pointerInput(note) { detectTapGestures(onTap = { onTap() }, onLongPress = { onLongPress() }) }
+        .pointerInput(note) { detectHorizontalDragGestures(onHorizontalDrag = { change, amount -> dragX += amount }, onDragEnd = { if (dragX < -55f) onSwipeLeft() else if (dragX > 55f) onSwipeRight(); dragX = 0f }) }
+        .padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(if (pinned) "📌  " else "", color = pAccent)
         Text(note, color = pText, fontSize = 12.sp, maxLines = 4, modifier = Modifier.weight(1f))
     }
 }
+
 @Composable
 private fun FilesTab(context: Context) {
     var label by remember { mutableStateOf("FV File Explorer") }
