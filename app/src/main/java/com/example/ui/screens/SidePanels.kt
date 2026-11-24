@@ -164,7 +164,7 @@ private fun loadPinnedClips(context: Context): Set<String> = context.getSharedPr
 @Composable
 private fun ClipboardTab(context: Context) {
     val clipManager = remember { context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
-    val clips = remember { mutableStateListOf<String>().apply { addAll(loadSideClips(context)) } }
+    val clips = remember { mutableStateListOf<String>().apply { addAll(loadSideClips(context).distinct()) } }
     val pinned = remember { mutableStateListOf<String>().apply { addAll(loadPinnedClips(context)) } }
     var selected by remember { mutableStateOf<String?>(null) }
     var query by remember { mutableStateOf("") }
@@ -181,10 +181,10 @@ private fun ClipboardTab(context: Context) {
         }
         if (pinned.isNotEmpty()) Text("PINNED", color = pAccent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            items(pinned.toList(), key = { "pin_$it" }) { value ->
+            items(pinned.toList().distinct(), key = { "pin_${it.hashCode()}" }) { value ->
                 ClipboardCard(value, true, { copyText(value) }, { selected = value })
             }
-            items(clips.filter { it !in pinned && it.contains(query, true) }, key = { it }) { value ->
+            items(clips.filter { it !in pinned && it.contains(query, true) }.distinct(), key = { "clip_${it.hashCode()}" }) { value ->
                 ClipboardCard(value, false, { copyText(value) }, { selected = value })
             }
         }
@@ -235,7 +235,7 @@ private fun ClipboardCard(value: String, isPinned: Boolean, onTap: () -> Unit, o
 @Composable
 private fun NotesTab(context: Context) {
     val clipManager = remember { context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager }
-    val notes = remember { mutableStateListOf<String>().apply { addAll(loadSideNotes(context)) } }
+    val notes = remember { mutableStateListOf<String>().apply { addAll(loadSideNotes(context).distinct()) } }
     val pinned = remember { mutableStateListOf<String>().apply { addAll(context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).getStringSet("pinned_notes", emptySet())?.toList() ?: emptyList()) } }
     var selected by remember { mutableStateOf<String?>(null) }
     var creating by remember { mutableStateOf(false) }
@@ -245,10 +245,10 @@ private fun NotesTab(context: Context) {
             Text("+", color = pAccent, fontSize = 22.sp, modifier = Modifier.clickable { selected = ""; creating = true }.padding(horizontal = 10.dp))
         }
         LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            items(pinned.toList(), key = { "p_$it" }) { note ->
+            items(pinned.toList().distinct(), key = { "note_pin_${it.hashCode()}" }) { note ->
                 NoteCard(note, true, onTap = { clipManager.setPrimaryClip(ClipData.newPlainText("note", note)) }, onLongPress = { selected = note; creating = false }, onSwipeLeft = { if (note in pinned) pinned.remove(note) else pinned.add(note); context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).edit().putStringSet("pinned_notes", pinned.toSet()).apply() }, onSwipeRight = { notes.remove(note); pinned.remove(note); saveSideNotes(context, notes); context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).edit().putStringSet("pinned_notes", pinned.toSet()).apply() })
             }
-            items(notes.filter { it !in pinned }, key = { it }) { note ->
+            items(notes.filter { it !in pinned }.distinct(), key = { "note_${it.hashCode()}" }) { note ->
                 NoteCard(note, false, onTap = { clipManager.setPrimaryClip(ClipData.newPlainText("note", note)) }, onLongPress = { selected = note; creating = false }, onSwipeLeft = { if (note in pinned) pinned.remove(note) else pinned.add(note); context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).edit().putStringSet("pinned_notes", pinned.toSet()).apply() }, onSwipeRight = { notes.remove(note); pinned.remove(note); saveSideNotes(context, notes); context.getSharedPreferences("side_panel_data", Context.MODE_PRIVATE).edit().putStringSet("pinned_notes", pinned.toSet()).apply() })
             }
         }

@@ -168,7 +168,8 @@ fun MediaControlScreen(viewModel: OneHandViewModel, modifier: Modifier = Modifie
         V5EdgeSlider(
             label = "Seek",
             value = media.currentSeconds.toFloat(),
-            range = 0f..media.totalSeconds.coerceAtLeast(1).toFloat()
+            range = 0f..media.totalSeconds.coerceAtLeast(1).toFloat(),
+            showSeekTime = true
         ) { viewModel.seekMedia(it.toInt()) }
 
         V5Media5Buttons(viewModel, media.isPlaying)

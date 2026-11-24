@@ -966,7 +966,7 @@ fun QuickSettingsRow(
         if (fiveColumns) {
             val visibleItems = quickSettings.filter { it.isVisible }
             val pageCount = ((visibleItems.size + 9) / 10).coerceAtLeast(1)
-            var page by remember(visibleItems.map { it.id }) { mutableIntStateOf(0) }
+            var page by remember(visibleItems.map { it.id }) { mutableStateOf(0) }
             var dragTotal by remember { mutableFloatStateOf(0f) }
             Column(Modifier.fillMaxWidth().padding(5.dp)
                 .pointerInput(page, pageCount) {
