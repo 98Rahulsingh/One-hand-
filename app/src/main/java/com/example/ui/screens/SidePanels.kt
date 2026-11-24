@@ -36,7 +36,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.activity.compose.BackHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
@@ -346,7 +345,6 @@ fun NotesEditorOverlay(viewModel: OneHandViewModel) {
         prefs.edit().putStringSet("pinned_notes", pinned.toSet()).apply()
         viewModel.dismissNoteEditor()
     }
-    BackHandler(enabled = true) { saveAndClose() }
     Box(Modifier.fillMaxSize().background(Color(0xCC000000)), contentAlignment = Alignment.Center) {
         Column(Modifier.fillMaxSize().background(Color(0xFF080D10)).padding(10.dp)) {
             Row(Modifier.fillMaxWidth().background(Color(0xFF10252C), RoundedCornerShape(10.dp)).padding(10.dp),
@@ -357,22 +355,33 @@ fun NotesEditorOverlay(viewModel: OneHandViewModel) {
             OutlinedTextField(value = state.text, onValueChange = { viewModel.updateNoteEditorText(it) },
                 modifier = Modifier.weight(1f).fillMaxWidth().padding(vertical = 10.dp),
                 placeholder = { Text("Write a note…") }, minLines = 8)
-            Row(Modifier.fillMaxWidth().background(Color(0xFF202124), RoundedCornerShape(12.dp)).padding(vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-                Text("Copy", color = pAccent, modifier = Modifier.clickable { clipManager.setPrimaryClip(ClipData.newPlainText("note", state.text)) }.padding(5.dp))
-                Text("Share", color = pAccent, modifier = Modifier.clickable { if (state.text.isNotBlank()) runCatching { context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, state.text), "Share")) } }.padding(5.dp))
-                Text(if (state.original in pinned) "Unpin" else "Pin", color = pAccent, modifier = Modifier.clickable {
-                    if (state.original in pinned) pinned.remove(state.original) else if (state.text.isNotBlank()) pinned.add(state.text)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).background(Color(0xFF202124), RoundedCornerShape(12.dp)).padding(horizontal = 6.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                @Composable fun NoteAction(label: String, danger: Boolean = false, onClick: () -> Unit) {
+                    Text(label, color = if (danger) Color(0xFFFF8A80) else pAccent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Color(0xFF10252C)).clickable { onClick() }.padding(horizontal = 12.dp, vertical = 9.dp))
+                }
+                NoteAction("Copy") { if (state.text.isNotBlank()) clipManager.setPrimaryClip(ClipData.newPlainText("note", state.text)) }
+                NoteAction("Share") {
+                    if (state.text.isNotBlank()) runCatching {
+                        val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, state.text)
+                        context.startActivity(Intent.createChooser(send, "Share note").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    }
+                }
+                val isPinned = state.original in pinned || state.text in pinned
+                NoteAction(if (isPinned) "Unpin" else "Pin") {
+                    pinned.remove(state.original); pinned.remove(state.text)
+                    if (!isPinned && state.text.isNotBlank()) pinned.add(state.text)
                     prefs.edit().putStringSet("pinned_notes", pinned.toSet()).apply()
-                }.padding(5.dp))
-                Text("Delete", color = Color(0xFFFF6B6B), modifier = Modifier.clickable {
+                }
+                NoteAction("Delete", danger = true) {
                     if (!state.isNew) notes.remove(state.original)
+                    pinned.remove(state.original); pinned.remove(state.text)
                     saveSideNotes(context, notes.distinct())
-                    if (state.original in pinned) pinned.remove(state.original)
                     prefs.edit().putStringSet("pinned_notes", pinned.toSet()).apply()
                     viewModel.dismissNoteEditor()
-                }.padding(5.dp))
-                Text("Close", color = pAccent, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { saveAndClose() }.padding(5.dp))
+                }
+                NoteAction("Close") { saveAndClose() }
             }
         }
     }

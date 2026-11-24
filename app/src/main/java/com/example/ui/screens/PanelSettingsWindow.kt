@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -47,7 +48,13 @@ fun PanelSettingsWindow(
     val clipboardPrefs = remember { settingsContext.getSharedPreferences("side_panel_data", android.content.Context.MODE_PRIVATE) }
     var clipboardLimit by remember { mutableIntStateOf(clipboardPrefs.getInt("clipboard_max_cards", 30).coerceIn(10, 100)) }
 
-    var expanded by remember { mutableStateOf(setOf("Permissions")) }
+    val restoreGestureSettings = remember {
+        clipboardPrefs.getBoolean("return_to_gesture_settings", false).also { shouldRestore ->
+            if (shouldRestore) clipboardPrefs.edit().putBoolean("return_to_gesture_settings", false).apply()
+        }
+    }
+    var expanded by remember { mutableStateOf(if (restoreGestureSettings) setOf("Gesture Controls") else setOf("Permissions")) }
+    val settingsListState = rememberLazyListState(initialFirstVisibleItemIndex = if (restoreGestureSettings) 3 else 0)
     fun toggleSec(name: String) {
         expanded = if (name in expanded) expanded - name else expanded + name
     }
@@ -94,6 +101,7 @@ fun PanelSettingsWindow(
         Spacer(Modifier.height(4.dp))
 
         LazyColumn(
+            state = settingsListState,
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
@@ -186,7 +194,10 @@ fun PanelSettingsWindow(
                                 color = Color(0xFF00E5FF),
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.clickable { viewModel.startBindGesture(g) }
+                                modifier = Modifier.clickable {
+                                    clipboardPrefs.edit().putBoolean("return_to_gesture_settings", true).apply()
+                                    viewModel.startBindGesture(g)
+                                }
                             )
                         }
                     }
