@@ -11,6 +11,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -36,11 +37,15 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
 import com.example.model.AppItem
 import com.example.model.ItemType
 import com.example.viewmodel.OneHandViewModel
 import com.example.system.AppIcons
+import com.example.data.FloatingStore
+import android.graphics.Rect
+import kotlin.math.roundToInt
 import java.util.Base64
 
 private val pBg = Color(0xFF0A1418)
@@ -50,13 +55,21 @@ private val pText = Color(0xFFE0F7FA)
 
 @Composable
 fun QuickAppScreen(viewModel: OneHandViewModel, widthDp: Float, heightDp: Float) {
+    val context = LocalContext.current
+    val positionStore = remember { FloatingStore(context) }
+    val savedPosition = remember { positionStore.get("side_quick_app") }
+    var offsetX by remember { mutableIntStateOf(savedPosition?.left ?: 0) }
+    var offsetY by remember { mutableIntStateOf(savedPosition?.top ?: 0) }
     val apps by viewModel.masterItems.collectAsState()
     val used = remember(apps) { apps.filter { it.type == ItemType.APP && it.packageName.isNotBlank() }.sortedWith(compareByDescending<AppItem> { it.usageCount }.thenByDescending { it.lastUsed }).distinctBy { it.packageName }.take(6) }
     val recent = remember(apps) { apps.filter { it.type == ItemType.APP && it.packageName.isNotBlank() && it.lastUsed > 0L }.sortedByDescending { it.lastUsed }.distinctBy { it.packageName }.take(6) }
-    Column(Modifier.width(widthDp.dp).height(heightDp.dp).clip(RoundedCornerShape(14.dp)).background(pBg).border(1.dp, Color(0xFF1E4E59), RoundedCornerShape(14.dp)).padding(5.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+    Column(Modifier.offset { IntOffset(offsetX, offsetY) }.width(widthDp.dp).height(heightDp.dp).clip(RoundedCornerShape(14.dp)).background(pBg).border(1.dp, Color(0xFF1E4E59), RoundedCornerShape(14.dp)).padding(5.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(Modifier.fillMaxWidth().pointerInput(Unit) { detectDragGestures { change, amount ->
+            change.consume(); offsetX += amount.x.roundToInt(); offsetY += amount.y.roundToInt()
+            positionStore.put("side_quick_app", Rect(offsetX, offsetY, widthDp.toInt(), heightDp.toInt()))
+        } }, horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text("QUICK APP", color = pAccent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            Text("×", color = pText, modifier = Modifier.clickable { viewModel.dismissFloatingWindow() }.padding(2.dp))
+            Text("×", color = pText, modifier = Modifier.clickable { positionStore.put("side_quick_app", Rect(offsetX, offsetY, widthDp.toInt(), heightDp.toInt())); viewModel.dismissFloatingWindow() }.padding(2.dp))
         }
         Row(Modifier.fillMaxWidth()) {
             Text("MOST USED", color = pAccent, fontSize = 8.sp, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
@@ -82,17 +95,24 @@ private fun QuickAppCell(item: AppItem?, modifier: Modifier, onClick: (AppItem) 
 @Composable
 fun SidePanelScreen(viewModel: OneHandViewModel, widthDp: Float, heightDp: Float) {
     val context = LocalContext.current
+    val positionStore = remember { FloatingStore(context) }
+    val savedPosition = remember { positionStore.get("side_side_panel") }
+    var offsetX by remember { mutableIntStateOf(savedPosition?.left ?: 0) }
+    var offsetY by remember { mutableIntStateOf(savedPosition?.top ?: 0) }
     var expanded by remember { mutableStateOf(false) }
     var tab by remember { mutableStateOf("Action") }
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(Modifier.then(if (expanded) Modifier.fillMaxSize() else Modifier.width(widthDp.dp).height(heightDp.dp))
+        Column(Modifier.offset { IntOffset(offsetX, offsetY) }.then(if (expanded) Modifier.fillMaxSize() else Modifier.width(widthDp.dp).height(heightDp.dp))
             .clip(RoundedCornerShape(if (expanded) 0.dp else 14.dp)).background(pBg)
             .border(if (expanded) 0.dp else 1.dp, Color(0xFF1E4E59), RoundedCornerShape(if (expanded) 0.dp else 14.dp)).padding(8.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().pointerInput(expanded) { detectDragGestures { change, amount ->
+                if (!expanded) { change.consume(); offsetX += amount.x.roundToInt(); offsetY += amount.y.roundToInt()
+                    positionStore.put("side_side_panel", Rect(offsetX, offsetY, widthDp.toInt(), heightDp.toInt())) }
+            } }, horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("SIDE PANEL", color = pAccent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(if (expanded) "↙" else "⤢", color = pAccent, modifier = Modifier.clickable { expanded = !expanded }.padding(6.dp))
-                    Text("×", color = pText, modifier = Modifier.clickable { viewModel.dismissFloatingWindow() }.padding(6.dp))
+                    Text("×", color = pText, modifier = Modifier.clickable { positionStore.put("side_side_panel", Rect(offsetX, offsetY, widthDp.toInt(), heightDp.toInt())); viewModel.dismissFloatingWindow() }.padding(6.dp))
                 }
             }
             Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -195,8 +215,8 @@ private fun ClipboardTab(context: Context) {
         val oneLine = draft.contains('\n') || draft.contains('\r')
         val canUpper = draft.any { it.isLowerCase() }
         val canLower = draft.any { it.isUpperCase() }
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.58f)).clickable { selected = null }, contentAlignment = Alignment.Center) {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF202124)).clickable(enabled = false) {}.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(Modifier.fillMaxSize().background(pBg), contentAlignment = Alignment.TopCenter) {
+            Column(Modifier.fillMaxSize().padding(6.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF202124)).padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Clipboard text", color = pText, fontWeight = FontWeight.Bold); Text("×", color = pText, modifier = Modifier.clickable { selected = null }) }
                 Text(draft, color = pText, fontSize = 13.sp, maxLines = 5)
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

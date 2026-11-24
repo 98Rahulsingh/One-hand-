@@ -78,6 +78,7 @@ fun QuickPanelScreen(viewModel: OneHandViewModel, modifier: Modifier = Modifier)
             range = 0f..media.totalSeconds.coerceAtLeast(1).toFloat(),
             showSeekTime = true
         ) { viewModel.seekMedia(it.toInt()) }
+        MediaTimeReadout(media.currentSeconds, media.totalSeconds)
 
         V5Media5Buttons(viewModel, media.isPlaying)
 
@@ -167,11 +168,12 @@ fun MediaControlScreen(viewModel: OneHandViewModel, modifier: Modifier = Modifie
         )
 
         V5EdgeSlider(
-            label = "Seek",
+            label = null,
             value = media.currentSeconds.toFloat(),
             range = 0f..media.totalSeconds.coerceAtLeast(1).toFloat(),
             showSeekTime = true
         ) { viewModel.seekMedia(it.toInt()) }
+        MediaTimeReadout(media.currentSeconds, media.totalSeconds)
 
         V5Media5Buttons(viewModel, media.isPlaying)
 
@@ -280,6 +282,18 @@ private fun V5EdgeSlider(label: String?, value: Float, range: ClosedFloatingPoin
             )
         )
         }
+    }
+}
+
+@Composable
+private fun MediaTimeReadout(currentSeconds: Int, totalSeconds: Int) {
+    fun clock(seconds: Int): String {
+        val safe = seconds.coerceAtLeast(0)
+        return "%d:%02d".format(safe / 60, safe % 60)
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(clock(currentSeconds), color = Color(0xFF80DEEA), fontSize = 9.sp)
+        Text(clock(totalSeconds), color = Color(0xFF80DEEA), fontSize = 9.sp)
     }
 }
 

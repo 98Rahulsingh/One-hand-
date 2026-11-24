@@ -987,8 +987,8 @@ fun QuickSettingsRow(
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(if (pageCount > 1) "${page + 1}/$pageCount  ·  Swipe ↑ / ↓" else "1/1", color = Color(0xFF80DEEA), fontSize = 8.sp)
-                    Row { Text("＋", color = Color(0xFF00E5FF), modifier = Modifier.clickable { onOpenActionsAdd() }.padding(horizontal = 10.dp))
-                        Text("⚙", color = Color(0xFF00E5FF), modifier = Modifier.clickable { onOpenSettings() }.padding(horizontal = 10.dp)) }
+                    Row { Text("⚙", color = Color(0xFF00E5FF), modifier = Modifier.clickable { onOpenSettings() }.padding(horizontal = 10.dp))
+                        Text("＋", color = Color(0xFF00E5FF), modifier = Modifier.clickable { onOpenActionsAdd() }.padding(horizontal = 10.dp)) }
                 }
             }
         } else if (twoColumns) {
