@@ -430,7 +430,10 @@ fun MainEdgePanel(
                                         items(categoryFilteredItems, key = { it.id }) { item ->
                                             CompactAppTile(
                                                 item = item,
-                                                onClick = { viewModel.launchApp(item) }
+                                                onClick = { viewModel.launchApp(item) },
+                                                onDoubleClick = {
+                                                    if (item.id == "act_split") viewModel.launchSplitPair()
+                                                }
                                             )
                                         }
 
@@ -679,13 +682,19 @@ fun CompactAppTile(
     item: AppItem,
     showLabel: Boolean = true,
     onClick: () -> Unit,
+    onDoubleClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .clickable { onClick() }
+            .pointerInput(item.id) {
+                detectTapGestures(
+                    onTap = { onClick() },
+                    onDoubleTap = { onDoubleClick() }
+                )
+            }
             .padding(2.dp)
             .testTag("compact_app_${item.id}")
     ) {

@@ -321,12 +321,43 @@ class QuickActions(private val ctx: Context, private val perms: PermissionsManag
         return ActionResult("Switching to previous app (Recents)")
     }
 
+    /** Requests an app launch in Android's split-screen secondary window. OEM policy may reject it. */
+    fun launchSplitSecondary(pkg: String): Boolean {
+        if (pkg.isBlank()) return false
+        val intent = ctx.packageManager.getLaunchIntentForPackage(pkg) ?: return false
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+        val options = ActivityOptions.makeBasic()
+        val modeSet = try {
+            // 4 = WINDOWING_MODE_SPLIT_SCREEN_SECONDARY
+            ActivityOptions::class.java
+                .getMethod("setLaunchWindowingMode", Int::class.javaPrimitiveType)
+                .invoke(options, 4)
+            true
+        } catch (_: Throwable) {
+            false
+        }
+        if (!modeSet) {
+            lastLaunch = "$pkg: split-screen launch mode unavailable"
+            return false
+        }
+        return try {
+            val starter: Context = PanelAccessibilityService.instance ?: ctx
+            starter.startActivity(intent, options.toBundle())
+            lastLaunch = "$pkg: requested split-screen secondary"
+            true
+        } catch (e: Exception) {
+            lastLaunch = "$pkg: split launch failed ${e.javaClass.simpleName}: ${e.message}"
+            onMessage?.invoke("Split screen could not open this app: " + (e.message ?: e.javaClass.simpleName))
+            false
+        }
+    }
+
     private fun splitScreen(): ActionResult {
         if (!perms.isAccessibilityOn() || PanelAccessibilityService.instance == null)
             return ActionResult("Split screen needs Accessibility", null, "accessibility")
         val sent = PanelAccessibilityService.global(AccessibilityService.GLOBAL_ACTION_TOGGLE_SPLIT_SCREEN)
         return ActionResult(
-            if (sent) "Split screen requested (works only if the app on screen allows it)"
+            if (sent) "Choose the second app from Recents"
             else "The phone refused the split-screen action"
         )
     }

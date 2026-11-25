@@ -1153,6 +1153,24 @@ class OneHandViewModel(app: Application) : AndroidViewModel(app) {
         togglePanel(false)
     }
 
+    /** Double-tap Split Screen: request the most recently used other app in the secondary pane. */
+    fun launchSplitPair() {
+        val recentApps = _masterItems.value
+            .filter { it.type == ItemType.APP && it.packageName.isNotBlank() && it.lastUsed > 0L }
+            .sortedByDescending { it.lastUsed }
+        val secondApp = recentApps.getOrNull(1) ?: recentApps.firstOrNull()
+        if (secondApp == null) {
+            showToast("No recent app found. Open another app once and try again.")
+            return
+        }
+        if (actions.launchSplitSecondary(secondApp.packageName)) {
+            togglePanel(false)
+            showToast("Opening ${secondApp.name} below the current app")
+        } else {
+            showToast("Phone did not allow automatic split-screen. Try Single Tap and choose an app from Recents.")
+        }
+    }
+
     fun showToast(msg: String) {
         _toastMessage.value = msg
         viewModelScope.launch {
